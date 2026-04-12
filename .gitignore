@@ -24,6 +24,8 @@ desktop.ini
 *.xlsx
 *.docx
 *.pdf
+# Exception: Excel template used by the backend to generate quotations
+!backend/scripts/cotizacion_base.xlsx
 
 # Client data and large proposal files
 contactos/
