@@ -1,0 +1,36 @@
+# Secrets — NEVER commit
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated files (Excel / Word / PDF — stored in MinIO, not git)
+*.xlsx
+*.docx
+*.pdf
+
+# Client data and large proposal files
+contactos/
+Cotizaciones proyectos/
+
+# Keep context folders — they are mounted into the backend container
+# Conttexto CRM Baterias Traccion/
+# Contexto CRM Fertilizantes/
+# Catalogo de Equipos/
+# Contexto de Cotizacion/
