@@ -1,0 +1,20 @@
+**/.git
+**/.DS_Store
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+# Datos de clientes — no van en la imagen
+contactos/
+Cotizaciones proyectos/
+# Archivos grandes de contexto (se montan como volumen)
+Conttexto CRM Baterias Traccion/
+Contexto CRM Fertilizantes/
+Catalogo de Equipos/
+Contexto de Cotizacion/
+Contexto Cotizaciones/
+# Secrets
+.env
+.env.prod
