@@ -1,9 +1,29 @@
 import axios from 'axios'
+import { useAuthStore } from '../store/auth'
 
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 })
+
+// Adjuntar token en cada request
+api.interceptors.request.use(config => {
+  const token = useAuthStore.getState().token
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// Si el token expiró, forzar logout
+api.interceptors.response.use(
+  r => r,
+  error => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default api
 
@@ -103,3 +123,11 @@ export const createExchangeRate = (data: object) =>
 // ── Business Lines ─────────────────────────────────────────────
 export const getBusinessLines = () =>
   api.get('/business-lines').then(r => r.data)
+
+// ── Auth / Usuarios ────────────────────────────────────────────
+export const getUsers = () =>
+  api.get('/auth/users').then(r => r.data)
+export const createUser = (data: object) =>
+  api.post('/auth/users', data).then(r => r.data)
+export const deleteUser = (id: number) =>
+  api.delete(`/auth/users/${id}`)

@@ -1,10 +1,11 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, TrendingUp, Package,
-  FileText, Leaf,
+  FileText, Leaf, LogOut,
 } from 'lucide-react'
 import clsx from 'clsx'
 import opexLogo from '../logo/Opex.png'
+import { useAuthStore } from '../store/auth'
 
 const NAV = [
   { to: '/',            label: 'Dashboard',    icon: LayoutDashboard },
@@ -16,6 +17,15 @@ const NAV = [
 ]
 
 export default function Sidebar() {
+  const user     = useAuthStore(s => s.user)
+  const logout   = useAuthStore(s => s.logout)
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <aside className="w-56 bg-brand-900 text-white flex flex-col shrink-0 h-screen sticky top-0">
       {/* Logo area */}
@@ -26,7 +36,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">CRM</span>
           <span className="w-1 h-1 rounded-full bg-accent-500" />
-          <span className="text-white/40 text-[10px] uppercase tracking-widest">v1.1</span>
+          <span className="text-white/40 text-[10px] uppercase tracking-widest">v1.2</span>
         </div>
       </div>
 
@@ -52,11 +62,25 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — usuario y logout */}
       <div className="px-4 py-4 border-t border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-white/50 text-xs">Sistema activo</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-white/85 text-xs font-medium truncate">{user?.nombre}</p>
+            <span className={clsx(
+              'text-[10px] font-bold uppercase tracking-widest',
+              user?.rol === 'editor' ? 'text-accent-400' : 'text-white/40'
+            )}>
+              {user?.rol}
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            className="text-white/40 hover:text-white/80 transition-colors p-1.5 rounded-lg hover:bg-white/10 shrink-0"
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
     </aside>
