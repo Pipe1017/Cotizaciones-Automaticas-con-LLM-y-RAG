@@ -13,11 +13,13 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Si el token expiró, forzar logout
+// Si el token expiró en una llamada de datos, forzar logout
+// (no aplica para descargas — esas tienen su propio catch)
 api.interceptors.response.use(
   r => r,
   error => {
-    if (error.response?.status === 401) {
+    const isBlob = error.config?.responseType === 'blob'
+    if (error.response?.status === 401 && !isBlob) {
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }
@@ -124,16 +126,22 @@ export const createExchangeRate = (data: object) =>
 export const getBusinessLines = () =>
   api.get('/business-lines').then(r => r.data)
 
-// ── Descarga autenticada via URL directa con token en query param ─
-export const downloadFile = (path: string, filename: string) => {
-  const token = useAuthStore.getState().token
-  const url = `/api${path}${token ? `?token=${encodeURIComponent(token)}` : ''}`
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+// ── Descarga autenticada via axios blob ────────────────────────
+export const downloadFile = async (path: string, filename: string) => {
+  try {
+    const response = await api.get(path, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([response.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    console.error('Error descargando archivo:', err?.response?.status, path)
+    alert('Error al descargar. Intenta recargar la página.')
+  }
 }
 
 // ── Auth / Usuarios ────────────────────────────────────────────
