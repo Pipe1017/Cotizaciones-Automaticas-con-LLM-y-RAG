@@ -1,6 +1,9 @@
 import httpx
 import json
+import logging
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
@@ -24,8 +27,10 @@ INSTRUCCIONES:
   Indica en la descripción el número de celdas necesarias y la configuración.
 - Si el cliente menciona capacidad, selecciona el producto con capacidad igual o inmediatamente superior.
 - Si hay ambigüedad, elige la opción más conservadora e indícalo en observaciones.
-- Si el precio no está definido (precio_neto_usd = null), usa 0 y menciona en observaciones.
+- Si el precio no está definido (precio_neto_usd = null o 0), usa precio_unitario_usd = 0 y anota en observaciones "Precio pendiente de confirmar con proveedor".
 - Los precios deben tomarse siempre del catálogo cuando estén disponibles.
+- CRÍTICO: el array "items" NUNCA debe estar vacío. Siempre selecciona el producto más adecuado aunque su precio sea 0 o null.
+- Si no hay un producto exacto, elige el más cercano por voltaje y capacidad.
 
 Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con este esquema exacto:
 {{
@@ -50,7 +55,7 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
 async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
     system = SYSTEM_PROMPT.format(catalog=catalog_json)
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             DEEPSEEK_API_URL,
             headers={
@@ -69,4 +74,6 @@ async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+        result = json.loads(content)
+        logger.info("DeepSeek response items: %d", len(result.get("items", [])))
+        return result
