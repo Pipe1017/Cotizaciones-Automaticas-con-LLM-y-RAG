@@ -1,8 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProducts, getBusinessLines, createProduct, updateProduct, deleteProduct, updateProductPrice } from '../lib/api'
-import { useState } from 'react'
-import { Pencil, Check, X, Plus, Trash2 } from 'lucide-react'
+import {
+  getProducts, getBusinessLines, createProduct, updateProduct, deleteProduct,
+  updateProductPrice, getProveedores, createProveedor, updateProveedor,
+  deleteProveedor, uploadDatasheet, downloadFile,
+} from '../lib/api'
+import { useState, useRef } from 'react'
+import { Pencil, Check, X, Plus, Trash2, Paperclip, Download, Building2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+
+const timeAgo = (iso: string) => {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  const d = Math.floor(diff / 86400000)
+  if (d === 0) return 'hoy'
+  if (d === 1) return 'ayer'
+  if (d < 30) return `hace ${d}d`
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+}
 
 // ── Inline price editor ────────────────────────────────────────
 function PriceCell({ product, field }: { product: any; field: 'precio_neto_eur' | 'precio_neto_usd' }) {
@@ -49,6 +63,7 @@ const EMPTY_FORM = {
   codigo_sap: '', capacidad_ah: '', kwh: '', peso_kg: '',
   largo_mm: '', ancho_mm: '', altura_mm: '',
   precio_neto_eur: '', precio_neto_usd: '',
+  proveedor_id: '' as string | number,
 }
 
 type FormData = typeof EMPTY_FORM
@@ -79,6 +94,8 @@ function ProductModal({
   const isEdit = !!product
   const isTechLine = TECHNICAL_LINES.has(blId)
 
+  const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores })
+
   const [form, setForm] = useState<FormData>(() => isEdit ? {
     modelo_hoppecke: product.modelo_hoppecke ?? '',
     referencia_usa: product.referencia_usa ?? '',
@@ -96,6 +113,7 @@ function ProductModal({
     altura_mm: product.altura_mm ?? '',
     precio_neto_eur: product.precio_neto_eur ?? '',
     precio_neto_usd: product.precio_neto_usd ?? '',
+    proveedor_id: product.proveedor_id ?? '',
   } : EMPTY_FORM)
 
   const toNum = (v: string) => v === '' ? null : parseFloat(v)
@@ -120,6 +138,7 @@ function ProductModal({
         altura_mm: toNum(form.altura_mm as string),
         precio_neto_eur: toNum(form.precio_neto_eur as string),
         precio_neto_usd: toNum(form.precio_neto_usd as string),
+        proveedor_id: form.proveedor_id !== '' ? Number(form.proveedor_id) : null,
       }
       return isEdit ? updateProduct(product.id, payload) : createProduct(payload)
     },
@@ -138,6 +157,16 @@ function ProductModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nombre / Modelo *" name="modelo_hoppecke" form={form} setForm={setForm} span />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor</label>
+            <select className="input-base w-full" value={form.proveedor_id}
+              onChange={e => setForm({ ...form, proveedor_id: e.target.value })}>
+              <option value="">— Sin proveedor —</option>
+              {(proveedores as any[]).map((p: any) => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+          </div>
           <Field label="Referencia" name="referencia_usa" form={form} setForm={setForm} />
           <Field label="Código SAP" name="codigo_sap" form={form} setForm={setForm} />
           <div className="col-span-2">
@@ -205,8 +234,9 @@ const VOLT_COLORS: Record<string, string> = {
   '12V': 'bg-green-100 text-green-700',
 }
 
-function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
-  products: any[]; onEdit: (p: any) => void; onDelete: (p: any) => void; showVoltaje: boolean
+function TechnicalTable({ products, onEdit, onDelete, showVoltaje, proveedoresMap }: {
+  products: any[]; onEdit: (p: any) => void; onDelete: (p: any) => void
+  showVoltaje: boolean; proveedoresMap: Record<number, string>
 }) {
   return (
     <table className="w-full text-sm">
@@ -214,6 +244,7 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
         <tr>
           {showVoltaje && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Voltaje</th>}
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modelo</th>
+          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Proveedor</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referencia</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Conector</th>
           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ah</th>
@@ -221,6 +252,7 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">kg</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio €</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio $</th>
+          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modificado</th>
           <th className="px-4 py-3" />
         </tr>
       </thead>
@@ -233,6 +265,11 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
               </td>
             )}
             <td className="px-4 py-2.5 font-medium text-gray-900">{p.modelo_hoppecke}</td>
+            <td className="px-4 py-2.5">
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
+                {p.proveedor_id ? (proveedoresMap[p.proveedor_id] || '—') : '—'}
+              </span>
+            </td>
             <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{p.referencia_usa || '—'}</td>
             <td className="px-4 py-2.5 text-gray-500 text-xs">{p.tipo_conector || '—'}</td>
             <td className="px-4 py-2.5 text-right text-gray-700">{p.capacidad_ah || '—'}</td>
@@ -240,8 +277,10 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
             <td className="px-4 py-2.5 text-right text-gray-600">{p.peso_kg || '—'}</td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_eur" /></td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_usd" /></td>
+            <td className="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap">{timeAgo(p.updated_at)}</td>
             <td className="px-4 py-2.5">
-              <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <DatasheetCell product={p} />
                 <RowActions product={p} onEdit={onEdit} onDelete={onDelete} />
               </div>
             </td>
@@ -252,19 +291,21 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje }: {
   )
 }
 
-function SimpleTable({ products, onEdit, onDelete }: {
+function SimpleTable({ products, onEdit, onDelete, proveedoresMap }: {
   products: any[]; onEdit: (p: any) => void; onDelete: (p: any) => void
+  proveedoresMap: Record<number, string>
 }) {
   return (
     <table className="w-full text-sm">
       <thead className="bg-gray-50 border-b border-gray-100">
         <tr>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nombre / Modelo</th>
+          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Proveedor</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referencia</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Descripción</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Unidad</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio €</th>
           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio $</th>
+          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modificado</th>
           <th className="px-4 py-3" />
         </tr>
       </thead>
@@ -272,13 +313,19 @@ function SimpleTable({ products, onEdit, onDelete }: {
         {products.map(p => (
           <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
             <td className="px-4 py-2.5 font-medium text-gray-900 max-w-[200px]">{p.modelo_hoppecke}</td>
+            <td className="px-4 py-2.5">
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
+                {p.proveedor_id ? (proveedoresMap[p.proveedor_id] || '—') : '—'}
+              </span>
+            </td>
             <td className="px-4 py-2.5 text-gray-500 text-xs font-mono whitespace-nowrap">{p.referencia_usa || '—'}</td>
             <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate" title={p.descripcion_comercial}>{p.descripcion_comercial || '—'}</td>
-            <td className="px-4 py-2.5 text-gray-500 text-xs">{p.unidad || '—'}</td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_eur" /></td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_usd" /></td>
+            <td className="px-4 py-2.5 text-gray-400 text-xs">{timeAgo(p.updated_at)}</td>
             <td className="px-4 py-2.5">
-              <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <DatasheetCell product={p} />
                 <RowActions product={p} onEdit={onEdit} onDelete={onDelete} />
               </div>
             </td>
@@ -286,6 +333,37 @@ function SimpleTable({ products, onEdit, onDelete }: {
         ))}
       </tbody>
     </table>
+  )
+}
+
+function DatasheetCell({ product }: { product: any }) {
+  const qc = useQueryClient()
+  const ref = useRef<HTMLInputElement>(null)
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadDatasheet(product.id, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  })
+  return (
+    <div className="flex items-center gap-1">
+      <input ref={ref} type="file" accept=".pdf,.xlsx,.docx,.jpg,.png"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f) }} />
+      {product.datasheet_path ? (
+        <button
+          onClick={() => downloadFile(`/products/${product.id}/datasheet`, product.datasheet_path.split('/').pop() || 'datasheet')}
+          className="p-1 rounded text-brand-500 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+          title="Descargar datasheet">
+          <Download size={13} />
+        </button>
+      ) : null}
+      <button
+        onClick={() => ref.current?.click()}
+        disabled={upload.isPending}
+        className="p-1 rounded text-gray-300 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+        title={product.datasheet_path ? 'Reemplazar datasheet' : 'Subir datasheet'}>
+        <Paperclip size={13} />
+      </button>
+    </div>
   )
 }
 
@@ -304,8 +382,98 @@ function RowActions({ product, onEdit, onDelete }: { product: any; onEdit: (p: a
   )
 }
 
+// ── Tab Proveedores ────────────────────────────────────────────
+function ProveedoresTab() {
+  const qc = useQueryClient()
+  const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores })
+  const [modal, setModal] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [form, setForm] = useState({ nombre: '', pais: 'Colombia', sitio_web: '', contacto_nombre: '', contacto_email: '', notas: '' })
+
+  const save = useMutation({
+    mutationFn: () => editing ? updateProveedor(editing.id, form) : createProveedor(form),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['proveedores'] }); setModal(false) },
+  })
+  const remove = useMutation({
+    mutationFn: (id: number) => deleteProveedor(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['proveedores'] }),
+  })
+
+  const openNew = () => { setEditing(null); setForm({ nombre: '', pais: 'Colombia', sitio_web: '', contacto_nombre: '', contacto_email: '', notas: '' }); setModal(true) }
+  const openEdit = (p: any) => { setEditing(p); setForm({ nombre: p.nombre, pais: p.pais || 'Colombia', sitio_web: p.sitio_web || '', contacto_nombre: p.contacto_nombre || '', contacto_email: p.contacto_email || '', notas: p.notas || '' }); setModal(true) }
+
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={openNew} className="btn-primary flex items-center gap-2">
+          <Plus size={16} /> Nuevo proveedor
+        </button>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              {['Proveedor', 'País', 'Sitio web', 'Contacto', 'Email', ''].map(h => (
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {(proveedores as any[]).map((p: any) => (
+              <tr key={p.id} className="hover:bg-gray-50 group">
+                <td className="px-4 py-3 font-semibold text-gray-800">{p.nombre}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs">{p.pais}</td>
+                <td className="px-4 py-3 text-xs">
+                  {p.sitio_web ? <a href={p.sitio_web} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">{p.sitio_web}</a> : '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-600 text-xs">{p.contacto_nombre || '—'}</td>
+                <td className="px-4 py-3 text-gray-600 text-xs">{p.contacto_email || '—'}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100">
+                    <button onClick={() => openEdit(p)} className="p-1.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50"><Pencil size={13} /></button>
+                    <button onClick={() => remove.mutate(p.id)} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="font-bold text-slate-800">{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</h2>
+            {[
+              { label: 'Nombre *', key: 'nombre' },
+              { label: 'País', key: 'pais' },
+              { label: 'Sitio web', key: 'sitio_web' },
+              { label: 'Nombre contacto', key: 'contacto_nombre' },
+              { label: 'Email contacto', key: 'contacto_email' },
+              { label: 'Notas', key: 'notas' },
+            ].map(({ label, key }) => (
+              <div key={key}>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+                <input className="input-base w-full" value={(form as any)[key]}
+                  onChange={e => setForm({ ...form, [key]: e.target.value })} />
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModal(false)} className="btn-secondary">Cancelar</button>
+              <button onClick={() => save.mutate()} disabled={!form.nombre || save.isPending} className="btn-primary">
+                {save.isPending ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────
 export default function Products({ allowedBL }: { allowedBL?: number[] }) {
+  const [mainTab, setMainTab] = useState<'catalogo' | 'proveedores'>('catalogo')
   const [activeBL, setActiveBL] = useState(allowedBL?.[0] ?? 1)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -313,10 +481,7 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
   const qc = useQueryClient()
 
-  const { data: rawBL = [] } = useQuery({
-    queryKey: ['business-lines'],
-    queryFn: getBusinessLines,
-  })
+  const { data: rawBL = [] } = useQuery({ queryKey: ['business-lines'], queryFn: getBusinessLines })
   const businessLines = allowedBL
     ? (rawBL as any[]).filter((bl: any) => allowedBL.includes(bl.id))
     : rawBL
@@ -325,6 +490,11 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
     queryKey: ['products', activeBL, search],
     queryFn: () => getProducts({ business_line_id: activeBL, search: search || undefined, limit: 500 }),
   })
+
+  const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores })
+  const proveedoresMap: Record<number, string> = Object.fromEntries(
+    (proveedores as any[]).map((p: any) => [p.id, p.nombre])
+  )
 
   const doDelete = useMutation({
     mutationFn: (p: any) => deleteProduct(p.id),
@@ -341,11 +511,32 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
     <div className="p-8">
       <PageHeader
         title="Catálogo de Productos"
-        subtitle={`${(products as any[]).length} referencias · Clic en precio para editar`}
+        subtitle={`${(products as any[]).length} referencias · Clic en precio para editar inline`}
       />
 
+      {/* Main tabs: Catálogo / Proveedores */}
+      <div className="flex gap-1 mb-5 border-b border-gray-200">
+        {[
+          { id: 'catalogo',    label: 'Catálogo' },
+          { id: 'proveedores', label: 'Proveedores' },
+        ].map(t => (
+          <button key={t.id}
+            onClick={() => setMainTab(t.id as any)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              mainTab === t.id
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {t.id === 'proveedores' ? <span className="flex items-center gap-1.5"><Building2 size={14}/>{t.label}</span> : t.label}
+          </button>
+        ))}
+      </div>
+
+      {mainTab === 'proveedores' && <ProveedoresTab />}
+
+      {mainTab === 'catalogo' && <>
       {/* BL tabs */}
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="flex gap-2 mb-4 flex-wrap">
         {(businessLines as any[]).map((bl: any) => (
           <button key={bl.id}
             onClick={() => { setActiveBL(bl.id); setSearch('') }}
@@ -389,9 +580,10 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
               onEdit={openEdit}
               onDelete={setConfirmDelete}
               showVoltaje={activeBL === 1}
+              proveedoresMap={proveedoresMap}
             />
           ) : (
-            <SimpleTable products={products as any[]} onEdit={openEdit} onDelete={setConfirmDelete} />
+            <SimpleTable products={products as any[]} onEdit={openEdit} onDelete={setConfirmDelete} proveedoresMap={proveedoresMap} />
           )}
         </div>
       )}
@@ -425,6 +617,7 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
           </div>
         </div>
       )}
+      </>}
     </div>
   )
 }

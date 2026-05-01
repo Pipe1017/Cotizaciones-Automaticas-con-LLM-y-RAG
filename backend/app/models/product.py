@@ -29,5 +29,7 @@ class Product(Base):
     tecnologia = Column(String(50))
     descripcion_comercial = Column(Text)
     unidad = Column(String(30), default="unidad")
+    proveedor_id  = Column(Integer, ForeignKey("proveedores.id", ondelete="SET NULL"), nullable=True)
+    datasheet_path = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())

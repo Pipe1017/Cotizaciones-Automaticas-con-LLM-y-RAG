@@ -139,6 +139,24 @@ export const downloadFile = (path: string, filename: string) => {
   document.body.removeChild(a)
 }
 
+// ── Proveedores ────────────────────────────────────────────────
+export const getProveedores = () =>
+  api.get('/proveedores').then(r => r.data)
+export const createProveedor = (data: object) =>
+  api.post('/proveedores', data).then(r => r.data)
+export const updateProveedor = (id: number, data: object) =>
+  api.put(`/proveedores/${id}`, data).then(r => r.data)
+export const deleteProveedor = (id: number) =>
+  api.delete(`/proveedores/${id}`)
+
+export const uploadDatasheet = (productId: number, file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return api.post(`/products/${productId}/datasheet`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+
 // ── Auth / Usuarios ────────────────────────────────────────────
 export const getUsers = () =>
   api.get('/auth/users').then(r => r.data)

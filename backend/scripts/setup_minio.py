@@ -23,6 +23,7 @@ BUCKETS = [
     settings.minio_bucket_templates,
     settings.minio_bucket_quotations,
     settings.minio_bucket_exports,
+    "products",
 ]
 
 
