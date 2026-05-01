@@ -63,7 +63,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer — usuario y logout */}
-      <div className="px-4 py-4 border-t border-white/10">
+      <div className="px-4 py-4 border-t border-white/10 space-y-3">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex-1 min-w-0">
             <p className="text-white/85 text-xs font-medium truncate">{user?.nombre}</p>
@@ -82,6 +82,9 @@ export default function Sidebar() {
             <LogOut size={15} />
           </button>
         </div>
+        <p className="text-white/20 text-[9px] leading-tight text-center">
+          By Aura Gallego<br />ft. Claude Code
+        </p>
       </div>
     </aside>
   )
