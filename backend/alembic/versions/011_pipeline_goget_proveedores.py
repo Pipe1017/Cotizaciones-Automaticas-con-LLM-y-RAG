@@ -59,10 +59,11 @@ def upgrade():
         sa.ForeignKey("proveedores.id", ondelete="SET NULL"), nullable=True,
     ))
     op.add_column("products", sa.Column("datasheet_path", sa.Text(), nullable=True))
-    op.add_column("products", sa.Column(
-        "updated_at", sa.TIMESTAMP(timezone=True),
-        server_default=sa.func.now(),
-    ))
+    # updated_at puede ya existir en algunos entornos — agregar solo si no existe
+    conn.execute(text("""
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    """))
 
     # Vincular todos los productos existentes a HOPPECKE
     conn.execute(text(
