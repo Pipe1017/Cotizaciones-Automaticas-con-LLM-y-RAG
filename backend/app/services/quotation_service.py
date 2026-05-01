@@ -36,12 +36,30 @@ class QuotationService:
 
         return f"{yymm}-{city}-{bl}-{counter:04d}"
 
-    def _catalog_json(self, landed_pct: float = 0, margen_pct: float = 0) -> str:
+    # Mapa de línea de negocio → categorías de producto relevantes
+    _BL_CATEGORIAS = {
+        1: ["traccion"],                        # TRACCION
+        2: ["estacionaria"],                    # ESTACIONARIA
+        3: ["movilidad"],                       # DRIVES
+        4: ["movilidad", "traccion"],           # LOGISTICA
+        5: ["fertilizantes"],                   # QUIMICOS/AGRO
+        6: ["hidrogeno", "gases", "movilidad"], # PROYECTOS/H2
+    }
+
+    def _catalog_json(self, business_line_id: int = 1, landed_pct: float = 0, margen_pct: float = 0) -> str:
         """
-        Devuelve el catálogo con precios ya ajustados por % landed + % margen.
-        precio_venta = precio_catalogo × (1 + landed/100) × (1 + margen/100)
+        Devuelve solo los productos relevantes para la línea de negocio,
+        con precios ajustados por % landed + % margen.
         """
-        products = self.db.query(Product).filter(Product.activo == True).all()
+        categorias = self._BL_CATEGORIAS.get(business_line_id, ["traccion", "estacionaria"])
+        products = (
+            self.db.query(Product)
+            .filter(Product.activo == True, Product.categoria.in_(categorias))
+            .all()
+        )
+        # Fallback: si no hay productos en esas categorías, traer todos
+        if not products:
+            products = self.db.query(Product).filter(Product.activo == True).all()
         multiplier = (1 + landed_pct / 100) * (1 + margen_pct / 100)
         catalog = [
             {
@@ -71,7 +89,8 @@ class QuotationService:
         # 1. Call DeepSeek with prices adjusted by landed/margen from the opportunity
         landed = float(getattr(data, 'landed_pct', 0) or 0)
         margen = float(getattr(data, 'margen_pct', 0) or 0)
-        catalog_json = self._catalog_json(landed_pct=landed, margen_pct=margen)
+        bl_id  = getattr(data, "business_line_id", 1) or 1
+        catalog_json = self._catalog_json(business_line_id=bl_id, landed_pct=landed, margen_pct=margen)
         ai_result = await generate_quotation_items(data.prompt, catalog_json)
 
         ai_items = ai_result.get("items", [])
