@@ -1,31 +1,11 @@
 import { Route, Routes } from 'react-router-dom'
+import { Droplets, LayoutGrid } from 'lucide-react'
 import ProtectedRoute from './components/ProtectedRoute'
-import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Pipeline from './pages/Pipeline'
-import Companies from './pages/Companies'
-import Products from './pages/Products'
-import Quotations from './pages/Quotations'
-import Leads from './pages/Leads'
-
-function AppLayout() {
-  return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <Routes>
-          <Route path="/"           element={<Dashboard />} />
-          <Route path="/pipeline"   element={<Pipeline />} />
-          <Route path="/companies"  element={<Companies />} />
-          <Route path="/products"   element={<Products />} />
-          <Route path="/quotations" element={<Quotations />} />
-          <Route path="/leads"      element={<Leads />} />
-        </Routes>
-      </main>
-    </div>
-  )
-}
+import ModuleSelector from './pages/ModuleSelector'
+import EnergiaModule from './modules/EnergiaModule'
+import AgroModule from './modules/AgroModule'
+import PlaceholderModule from './modules/PlaceholderModule'
 
 export default function App() {
   return (
@@ -33,7 +13,27 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/*" element={
         <ProtectedRoute>
-          <AppLayout />
+          <Routes>
+            <Route index element={<ModuleSelector />} />
+            <Route path="energia/*" element={<EnergiaModule />} />
+            <Route path="agro/*"    element={<AgroModule />} />
+            <Route path="h2/*"      element={
+              <PlaceholderModule
+                nombre="H₂ & Renovables"
+                descripcion="Hidrógeno verde, celdas de combustible PEM y energías renovables"
+                Icon={Droplets}
+                color="bg-cyan-700"
+              />
+            } />
+            <Route path="varios/*"  element={
+              <PlaceholderModule
+                nombre="Varios"
+                descripcion="Proyectos especiales, logística, licitaciones y otros negocios"
+                Icon={LayoutGrid}
+                color="bg-slate-600"
+              />
+            } />
+          </Routes>
         </ProtectedRoute>
       } />
     </Routes>

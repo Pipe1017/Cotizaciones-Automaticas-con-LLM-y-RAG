@@ -165,7 +165,7 @@ function CompanyRow({ c, onEdit, onDelete }: { c: any; onEdit: (c: any) => void;
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export default function Companies() {
+export default function Companies({ modulo }: { modulo?: string }) {
   const [tab, setTab] = useState<'cliente' | 'prospecto'>('cliente')
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(false)
@@ -174,8 +174,8 @@ export default function Companies() {
   const qc = useQueryClient()
 
   const { data: companies = [], isLoading } = useQuery({
-    queryKey: ['companies', tab, search],
-    queryFn: () => getCompanies(search || undefined),
+    queryKey: ['companies', tab, search, modulo],
+    queryFn: () => getCompanies(search || undefined, modulo),
   })
 
   // Filter by tab client-side (avoids separate query calls)

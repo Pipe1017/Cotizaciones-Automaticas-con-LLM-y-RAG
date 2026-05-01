@@ -14,6 +14,7 @@ class Company(Base):
     ciudad = Column(String(100))
     region = Column(String(10))  # BOG, MED, CLO, CTG, BAQ, PEI
     pais = Column(String(60), default="Colombia")
+    modulo = Column(String(30), nullable=False, default="energia_backup")
     activa = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())

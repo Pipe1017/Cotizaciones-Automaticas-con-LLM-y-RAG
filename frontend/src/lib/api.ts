@@ -30,8 +30,8 @@ api.interceptors.response.use(
 export default api
 
 // ── Companies ──────────────────────────────────────────────────
-export const getCompanies = (search?: string) =>
-  api.get('/companies', { params: { search, limit: 300 } }).then(r => r.data)
+export const getCompanies = (search?: string, modulo?: string) =>
+  api.get('/companies', { params: { search, modulo, limit: 300 } }).then(r => r.data)
 export const createCompany = (data: object) =>
   api.post('/companies', data).then(r => r.data)
 export const updateCompany = (id: number, data: object) =>

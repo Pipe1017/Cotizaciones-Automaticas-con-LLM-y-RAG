@@ -17,11 +17,13 @@ class CompanyIn(BaseModel):
     ciudad: Optional[str] = None
     region: Optional[str] = None
     pais: Optional[str] = "Colombia"
+    modulo: Optional[str] = "energia_backup"
 
 
 class CompanyOut(CompanyIn):
     id: int
     activa: bool
+    modulo: str
     created_at: datetime
 
     class Config:
@@ -32,6 +34,7 @@ class CompanyOut(CompanyIn):
 def list_companies(
     search: Optional[str] = None,
     tipo: Optional[str] = None,
+    modulo: Optional[str] = None,
     skip: int = 0,
     limit: int = 300,
     db: Session = Depends(get_db),
@@ -41,6 +44,8 @@ def list_companies(
         q = q.filter(Company.nombre.ilike(f"%{search}%"))
     if tipo:
         q = q.filter(Company.tipo == tipo)
+    if modulo:
+        q = q.filter(Company.modulo == modulo)
     return q.order_by(Company.nombre).offset(skip).limit(limit).all()
 
 
