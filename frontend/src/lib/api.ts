@@ -126,22 +126,15 @@ export const createExchangeRate = (data: object) =>
 export const getBusinessLines = () =>
   api.get('/business-lines').then(r => r.data)
 
-// ── Descarga autenticada via axios blob ────────────────────────
-export const downloadFile = async (path: string, filename: string) => {
-  try {
-    const response = await api.get(path, { responseType: 'blob' })
-    const url = URL.createObjectURL(new Blob([response.data]))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  } catch (err: any) {
-    console.error('Error descargando archivo:', err?.response?.status, path)
-    alert('Error al descargar. Intenta recargar la página.')
-  }
+// ── Descarga autenticada via cookie de sesión ─────────────────
+// El browser envía la cookie automáticamente — no necesita header
+export const downloadFile = (path: string, filename: string) => {
+  const a = document.createElement('a')
+  a.href = `/api${path}`
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 // ── Auth / Usuarios ────────────────────────────────────────────

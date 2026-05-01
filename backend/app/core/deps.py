@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
@@ -9,18 +9,21 @@ from app.core.security import decode_token
 from app.database import get_db
 from app.models.user import User
 
-# auto_error=False para que no falle si no hay header — lo manejamos nosotros
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 def get_current_user(
     request: Request,
     header_token: Optional[str] = Depends(oauth2_scheme),
+    cookie_token: Optional[str] = Cookie(None, alias="access_token"),
     db: Session = Depends(get_db),
 ) -> User:
-    # 1. Intentar desde header Authorization: Bearer <token>
-    # 2. Fallback: query param ?token=<token> (para descargas directas)
-    token = header_token or request.query_params.get("token")
+    # Prioridad: 1) Header Authorization  2) Cookie  3) Query param
+    token = (
+        header_token
+        or cookie_token
+        or request.query_params.get("token")
+    )
 
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

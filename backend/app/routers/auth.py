@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -42,12 +42,26 @@ class PasswordChange(BaseModel):
 
 
 @router.post("/login", response_model=Token)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    response: Response,
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.username == form.username, User.activo == True).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    token = create_access_token(user.username, user.rol)
+    # Cookie para descargas directas (el browser la manda automáticamente)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=False,
+        samesite="lax",
+        max_age=8 * 3600,
+        secure=True,
+    )
     return {
-        "access_token": create_access_token(user.username, user.rol),
+        "access_token": token,
         "token_type": "bearer",
         "rol": user.rol,
         "nombre": user.nombre,
