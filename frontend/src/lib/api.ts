@@ -124,20 +124,16 @@ export const createExchangeRate = (data: object) =>
 export const getBusinessLines = () =>
   api.get('/business-lines').then(r => r.data)
 
-// ── Descarga autenticada ───────────────────────────────────────
-export const downloadFile = async (path: string, fallbackName = 'archivo') => {
-  const response = await api.get(path, { responseType: 'blob' })
-  const disposition = response.headers['content-disposition'] || ''
-  const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-  const filename = match?.[1]?.replace(/['"]/g, '') || fallbackName
-  const url = URL.createObjectURL(new Blob([response.data]))
+// ── Descarga autenticada via URL directa con token en query param ─
+export const downloadFile = (path: string, filename: string) => {
+  const token = useAuthStore.getState().token
+  const url = `/api${path}${token ? `?token=${encodeURIComponent(token)}` : ''}`
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
 }
 
 // ── Auth / Usuarios ────────────────────────────────────────────
