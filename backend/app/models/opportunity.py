@@ -14,8 +14,10 @@ class Opportunity(Base):
     titulo = Column(String(300), nullable=False)
     descripcion = Column(Text)
     valor_usd = Column(Numeric(14, 2))
-    probabilidad = Column(String(30))   # Comprometida, Probable, Perdida
-    etapa = Column(String(50))          # Must Win, Plan Foco, Cotizacion, OC, Facturacion
+    probabilidad = Column(String(30), nullable=True)  # deprecated
+    etapa = Column(String(50))   # In Progress, Won, Lost, No Bid, Cancelled by Client
+    prob_go  = Column(Integer, default=50)  # % el cliente ejecuta el proyecto
+    prob_get = Column(Integer, default=50)  # % OPEX gana si el cliente ejecuta
     asesor = Column(String(100))
     apoyo_ra = Column(String(100))
     mes_esperado = Column(Date)

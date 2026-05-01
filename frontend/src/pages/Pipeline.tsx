@@ -14,16 +14,17 @@ import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
 
-const ETAPAS = ['Must Win', 'Plan Foco', 'Cotizacion', 'OC', 'Facturacion']
-const PROBABILIDADES = ['Comprometida', 'Probable', 'Perdida']
+const ETAPAS = ['In Progress', 'Won', 'Lost', 'No Bid', 'Cancelled by Client']
 
-const PROB_VARIANT: Record<string, any> = {
-  Comprometida: 'green', Probable: 'amber', Perdida: 'red',
-}
 const ETAPA_VARIANT: Record<string, any> = {
-  'Must Win': 'brand', 'Plan Foco': 'indigo', Cotizacion: 'blue',
-  OC: 'amber', Facturacion: 'green',
+  'In Progress': 'blue', Won: 'green', Lost: 'red',
+  'No Bid': 'gray', 'Cancelled by Client': 'amber',
 }
+
+const PCTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+const probCombined = (go: number, get: number) =>
+  Math.round((go * get) / 100)
 
 const CIUDADES = [
   { code: 'med', label: 'Medellín' }, { code: 'bog', label: 'Bogotá' },
@@ -721,7 +722,15 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
           <Badge variant={ETAPA_VARIANT[opp.etapa] || 'gray'}>{opp.etapa || '—'}</Badge>
         </td>
         <td className="px-3 py-3">
-          <Badge variant={PROB_VARIANT[opp.probabilidad] || 'gray'}>{opp.probabilidad || '—'}</Badge>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">
+              Go <span className="font-bold text-slate-600">{opp.prob_go ?? 50}%</span>
+              {' · '}Get <span className="font-bold text-slate-600">{opp.prob_get ?? 50}%</span>
+            </span>
+            <span className={`text-xs font-bold ${probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50) >= 50 ? 'text-emerald-600' : 'text-amber-500'}`}>
+              {probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50)}% combinada
+            </span>
+          </div>
         </td>
         <td className="px-3 py-3 text-sm">
           <span className="font-semibold text-emerald-700">
@@ -782,7 +791,7 @@ const ASESORES = ['Aura María Gallego', 'Juan David Giraldo', 'Alejandro Rendó
 
 const EMPTY_OPP = {
   company_id: '', business_line_id: '', titulo: '', descripcion: '',
-  valor_usd: '', probabilidad: 'Probable', etapa: 'Plan Foco',
+  valor_usd: '', etapa: 'In Progress', prob_go: 50, prob_get: 50,
   asesor: '', apoyo_ra: '', observaciones: '',
   fecha_oportunidad: '', landed_pct: '', margen_pct: '',
 }
@@ -827,11 +836,29 @@ function OppModal({ open, onClose, editId, form, setForm, companies, businessLin
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Probabilidad</label>
-          <select className="input-base" value={form.probabilidad}
-            onChange={e => setForm({ ...form, probabilidad: e.target.value })}>
-            {PROBABILIDADES.map(p => <option key={p} value={p}>{p}</option>)}
+          <label className="block text-xs font-semibold text-gray-600 mb-1">
+            Go — ¿el cliente ejecuta? <span className="text-slate-400 font-normal">(el proyecto sale)</span>
+          </label>
+          <select className="input-base" value={form.prob_go}
+            onChange={e => setForm({ ...form, prob_go: parseInt(e.target.value) })}>
+            {PCTS.map(p => <option key={p} value={p}>{p}%</option>)}
           </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">
+            Get — ¿lo hacen con OPEX? <span className="text-slate-400 font-normal">(si sale)</span>
+          </label>
+          <select className="input-base" value={form.prob_get}
+            onChange={e => setForm({ ...form, prob_get: parseInt(e.target.value) })}>
+            {PCTS.map(p => <option key={p} value={p}>{p}%</option>)}
+          </select>
+        </div>
+        <div className="col-span-2 bg-slate-50 rounded-lg px-4 py-2 flex items-center gap-3">
+          <span className="text-xs text-slate-500">Probabilidad combinada</span>
+          <span className="text-lg font-bold text-brand-700">
+            {probCombined(form.prob_go, form.prob_get)}%
+          </span>
+          <span className="text-xs text-slate-400">= Go {form.prob_go}% × Get {form.prob_get}% / 100</span>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Valor USD</label>
@@ -902,7 +929,7 @@ function OppModal({ open, onClose, editId, form, setForm, companies, businessLin
 
 // ── Main page ──────────────────────────────────────────────────
 export default function Pipeline() {
-  const [filter, setFilter] = useState({ etapa: '', probabilidad: '', asesor: '', business_line_id: '' })
+  const [filter, setFilter] = useState({ etapa: '', asesor: '', business_line_id: '' })
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<any>({ ...EMPTY_OPP })
   const [editId, setEditId] = useState<number | null>(null)
@@ -942,8 +969,8 @@ export default function Pipeline() {
     setForm({
       company_id: o.company_id || '', business_line_id: o.business_line_id || '',
       titulo: o.titulo, descripcion: o.descripcion || '',
-      valor_usd: o.valor_usd || '', probabilidad: o.probabilidad || 'Probable',
-      etapa: o.etapa || 'Plan Foco', asesor: o.asesor || '',
+      valor_usd: o.valor_usd || '', etapa: o.etapa || 'In Progress',
+      prob_go: o.prob_go ?? 50, prob_get: o.prob_get ?? 50, asesor: o.asesor || '',
       apoyo_ra: o.apoyo_ra || '', observaciones: o.observaciones || '',
       fecha_oportunidad: o.fecha_oportunidad || '',
       landed_pct: o.landed_pct ?? '', margen_pct: o.margen_pct ?? '',
@@ -951,15 +978,20 @@ export default function Pipeline() {
     setEditId(o.id); setModal(true)
   }
 
-  const totalPipeline = (opps as any[]).reduce((s, o) => s + (Number(o.valor_usd) || 0), 0)
-  const comprometido = (opps as any[]).filter(o => o.probabilidad === 'Comprometida').reduce((s, o) => s + (Number(o.valor_usd) || 0), 0)
+  const activeOpps   = (opps as any[]).filter(o => o.etapa === 'In Progress')
+  const totalPipeline = activeOpps.reduce((s, o) => s + (Number(o.valor_usd) || 0), 0)
+  const ponderado = activeOpps.reduce((s, o) => {
+    const combined = probCombined(o.prob_go ?? 50, o.prob_get ?? 50)
+    return s + (Number(o.valor_usd) || 0) * combined / 100
+  }, 0)
+  const won = (opps as any[]).filter(o => o.etapa === 'Won').reduce((s, o) => s + (Number(o.valor_usd) || 0), 0)
   const withQuote = (opps as any[]).filter(o => o.quotation_id).length
 
   return (
     <div className="p-8">
       <PageHeader
         title="Pipeline de Oportunidades"
-        subtitle={`${(opps as any[]).length} oportunidades · ${fmt(totalPipeline)} pipeline · ${fmt(comprometido)} comprometido · ${withQuote} cotizadas`}
+        subtitle={`${(opps as any[]).length} oportunidades · ${fmt(totalPipeline)} activo · ${fmt(ponderado)} ponderado · ${fmt(won)} won · ${withQuote} cotizadas`}
         action={
           <button onClick={openCreate} className="btn-primary flex items-center gap-2">
             <Plus size={16} /> Nueva Oportunidad
@@ -982,12 +1014,6 @@ export default function Pipeline() {
           className="input-base w-40">
           <option value="">Etapa: Todas</option>
           {ETAPAS.map(e => <option key={e} value={e}>{e}</option>)}
-        </select>
-        <select value={filter.probabilidad}
-          onChange={e => setFilter({ ...filter, probabilidad: e.target.value })}
-          className="input-base w-40">
-          <option value="">Probabilidad: Todas</option>
-          {PROBABILIDADES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <input placeholder="Buscar asesor..." value={filter.asesor}
           onChange={e => setFilter({ ...filter, asesor: e.target.value })}

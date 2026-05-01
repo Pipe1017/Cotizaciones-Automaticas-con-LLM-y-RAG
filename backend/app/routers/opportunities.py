@@ -20,13 +20,14 @@ class OpportunityIn(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
     valor_usd: Optional[Decimal] = None
-    probabilidad: Optional[str] = None
-    etapa: Optional[str] = None
+    etapa: Optional[str] = "In Progress"
     asesor: Optional[str] = None
     apoyo_ra: Optional[str] = None
     mes_esperado: Optional[date] = None
     observaciones: Optional[str] = None
     fecha_oportunidad: Optional[date] = None
+    prob_go:  Optional[int] = 50   # % el cliente ejecuta el proyecto (0-100)
+    prob_get: Optional[int] = 50   # % OPEX gana si ejecutan (0-100)
     # Campos internos de costeo
     landed_pct: Optional[Decimal] = Decimal("0")
     margen_pct: Optional[Decimal] = Decimal("0")
