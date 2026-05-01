@@ -30,7 +30,7 @@ export default function EnergiaModule() {
           <Route path="pipeline"     element={<Pipeline />} />
           <Route path="cotizaciones" element={<Quotations />} />
           <Route path="empresas"     element={<Companies modulo="energia_backup" />} />
-          <Route path="catalogo"     element={<Products />} />
+          <Route path="catalogo"     element={<Products allowedBL={[1, 2, 3]} />} />
         </Routes>
       </main>
     </div>

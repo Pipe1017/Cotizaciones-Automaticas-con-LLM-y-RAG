@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getQuotations, getQuotationItems, updateQuotationStatus, getCompanies, getBusinessLines, downloadFile } from '../lib/api'
+import { getQuotations, getQuotationItems, updateQuotationStatus, deleteQuotation, getCompanies, getBusinessLines, downloadFile } from '../lib/api'
 import { useState } from 'react'
-import { FileText, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import { FileText, Download, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -14,6 +14,7 @@ const ESTADO_COLORS: Record<string, string> = {
 // ── Quotation row (expandable items) ──────────────────────────
 function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
   const [open, setOpen] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
   const { data: items = [] } = useQuery({
     queryKey: ['quotation-items', q.id],
     queryFn: () => getQuotationItems(q.id),
@@ -22,6 +23,10 @@ function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
   const qc = useQueryClient()
   const changeStatus = useMutation({
     mutationFn: (estado: string) => updateQuotationStatus(q.id, estado),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quotations'] }),
+  })
+  const doDelete = useMutation({
+    mutationFn: () => deleteQuotation(q.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quotations'] }),
   })
 
@@ -82,11 +87,30 @@ function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
             )}
           </div>
         </td>
+        <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
+          {confirmDel ? (
+            <div className="flex items-center gap-1">
+              <button onClick={() => doDelete.mutate()}
+                className="px-2 py-1 text-xs font-semibold text-white bg-red-500 rounded hover:bg-red-600">
+                Confirmar
+              </button>
+              <button onClick={() => setConfirmDel(false)}
+                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800">
+                No
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDel(true)}
+              className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded">
+              <Trash2 size={14} />
+            </button>
+          )}
+        </td>
       </tr>
 
       {open && (
         <tr className="bg-brand-50/40">
-          <td colSpan={8} className="px-8 py-4 border-b border-brand-100">
+          <td colSpan={9} className="px-8 py-4 border-b border-brand-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
               Ítems de la cotización
             </p>
@@ -186,7 +210,7 @@ export default function Quotations() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-4 py-3 w-8" />
-                {['N° Cotización', 'Empresa', 'Contacto', 'Fecha', 'Total USD', 'Estado', 'Descargar'].map(h => (
+                {['N° Cotización', 'Empresa', 'Contacto', 'Fecha', 'Total USD', 'Estado', 'Descargar', ''].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
                 ))}
               </tr>

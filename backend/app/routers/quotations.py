@@ -846,6 +846,23 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
     return new_quote
 
 
+@router.delete("/{quote_id}", status_code=204)
+def delete_quotation(quote_id: int, db: Session = Depends(get_db)):
+    quote = db.query(Quotation).filter(Quotation.id == quote_id).first()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    # Desvincular oportunidad si existe
+    if quote.opportunity_id:
+        from app.models.opportunity import Opportunity
+        opp = db.query(Opportunity).filter(Opportunity.id == quote.opportunity_id).first()
+        if opp:
+            opp.quotation_id = None
+            db.flush()
+    # Los ítems se borran en cascada (ondelete=CASCADE)
+    db.delete(quote)
+    db.commit()
+
+
 @router.patch("/{quote_id}/status")
 def update_status(quote_id: int, estado: str, db: Session = Depends(get_db)):
     allowed = {"borrador", "enviada", "aprobada", "rechazada"}

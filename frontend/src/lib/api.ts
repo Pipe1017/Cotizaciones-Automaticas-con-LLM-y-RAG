@@ -97,6 +97,8 @@ export const createQuotation = (data: object) =>
   api.post('/quotations', data).then(r => r.data)
 export const updateQuotationStatus = (id: number, estado: string) =>
   api.patch(`/quotations/${id}/status`, null, { params: { estado } }).then(r => r.data)
+export const deleteQuotation = (id: number) =>
+  api.delete(`/quotations/${id}`)
 export const editQuotation = (id: number, data: object) =>
   api.put(`/quotations/${id}`, data).then(r => r.data)
 export const newQuotationVersion = (id: number, data: object) =>

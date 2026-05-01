@@ -305,18 +305,21 @@ function RowActions({ product, onEdit, onDelete }: { product: any; onEdit: (p: a
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export default function Products() {
-  const [activeBL, setActiveBL] = useState(1)
+export default function Products({ allowedBL }: { allowedBL?: number[] }) {
+  const [activeBL, setActiveBL] = useState(allowedBL?.[0] ?? 1)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
   const qc = useQueryClient()
 
-  const { data: businessLines = [] } = useQuery({
+  const { data: rawBL = [] } = useQuery({
     queryKey: ['business-lines'],
     queryFn: getBusinessLines,
   })
+  const businessLines = allowedBL
+    ? (rawBL as any[]).filter((bl: any) => allowedBL.includes(bl.id))
+    : rawBL
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products', activeBL, search],
