@@ -385,6 +385,31 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
     return quote
 
 
+@router.get("/catalog-check")
+def catalog_check(db: Session = Depends(get_db)):
+    """Verifica qué ve DeepSeek del catálogo de productos."""
+    from app.models.product import Product
+    products = db.query(Product).filter(Product.activo == True).all()
+    con_precio = [p for p in products if p.precio_neto_usd]
+    sin_precio = [p for p in products if not p.precio_neto_usd]
+    return {
+        "resumen": {
+            "total_productos": len(products),
+            "con_precio_usd": len(con_precio),
+            "sin_precio_usd": len(sin_precio),
+        },
+        "con_precio": [
+            {"id": p.id, "modelo": p.modelo_hoppecke, "categoria": p.categoria,
+             "precio_usd": float(p.precio_neto_usd)}
+            for p in con_precio
+        ],
+        "sin_precio": [
+            {"id": p.id, "modelo": p.modelo_hoppecke, "categoria": p.categoria}
+            for p in sin_precio
+        ],
+    }
+
+
 @router.post("/generate", response_model=QuotationOut, status_code=201)
 async def generate_quotation(
     data: GenerateQuotationIn,

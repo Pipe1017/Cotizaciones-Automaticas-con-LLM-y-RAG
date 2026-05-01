@@ -101,6 +101,17 @@ def delete_opportunity(opp_id: int, db: Session = Depends(get_db)):
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
+
+    # Eliminar cotización asociada (los ítems se borran en cascada por FK)
+    if opp.quotation_id:
+        from app.models.quotation import Quotation
+        quot = db.query(Quotation).filter(Quotation.id == opp.quotation_id).first()
+        if quot:
+            opp.quotation_id = None   # romper referencia circular
+            db.flush()
+            db.delete(quot)
+            db.flush()
+
     db.delete(opp)
     db.commit()
 
