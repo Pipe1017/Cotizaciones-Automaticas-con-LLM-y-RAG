@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getQuotations, getQuotationItems, updateQuotationStatus, getCompanies, getBusinessLines } from '../lib/api'
+import { getQuotations, getQuotationItems, updateQuotationStatus, getCompanies, getBusinessLines, downloadFile } from '../lib/api'
 import { useState } from 'react'
 import { FileText, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -57,28 +57,28 @@ function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
         <td className="px-4 py-3">
           <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
             {q.file_path_minio && (
-              <a href={`/api/quotations/${q.id}/download`} title="Excel"
+              <button onClick={() => downloadFile(`/quotations/${q.id}/download`, `${q.numero_cotizacion}.xlsx`)}
                 className="px-2 py-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                 XLS
-              </a>
+              </button>
             )}
             {q.file_path_carta && (
-              <a href={`/api/quotations/${q.id}/download/carta`} title="Word carta"
+              <button onClick={() => downloadFile(`/quotations/${q.id}/download/carta`, `${q.numero_cotizacion}_carta.docx`)}
                 className="px-2 py-1 rounded text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
                 Carta
-              </a>
+              </button>
             )}
             {q.file_path_cotizacion && (
-              <a href={`/api/quotations/${q.id}/download/cotizacion-word`} title="Word cotización"
+              <button onClick={() => downloadFile(`/quotations/${q.id}/download/cotizacion-word`, `${q.numero_cotizacion}_cotizacion.docx`)}
                 className="px-2 py-1 rounded text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 transition-colors">
                 Cot.
-              </a>
+              </button>
             )}
             {q.file_path_pdf && (
-              <a href={`/api/quotations/${q.id}/download/pdf-combinado`} title="PDF completo"
+              <button onClick={() => downloadFile(`/quotations/${q.id}/download/pdf-combinado`, `${q.numero_cotizacion}.pdf`)}
                 className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
                 PDF
-              </a>
+              </button>
             )}
           </div>
         </td>
@@ -120,14 +120,14 @@ function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
               </p>
               {q.file_path_minio && (
                 <div className="flex gap-3">
-                  <a href={`/api/quotations/${q.id}/download`}
+                  <button onClick={() => downloadFile(`/quotations/${q.id}/download`, `${q.numero_cotizacion}.xlsx`)}
                     className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-800">
                     <FileText size={14} /> Excel
-                  </a>
-                  <a href={`/api/quotations/${q.id}/download/pdf`}
+                  </button>
+                  <button onClick={() => downloadFile(`/quotations/${q.id}/download/pdf-combinado`, `${q.numero_cotizacion}.pdf`)}
                     className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-700">
                     <Download size={14} /> PDF
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
