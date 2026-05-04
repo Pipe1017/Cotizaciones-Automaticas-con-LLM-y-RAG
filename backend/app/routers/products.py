@@ -182,7 +182,8 @@ def download_datasheet(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Datasheet no disponible")
     from app.services.minio_service import MinioService
     minio = MinioService()
-    data = minio.get_file("products", f"datasheets/{product_id}/{p.datasheet_path.split('/')[-1]}")
+    # datasheet_path se almacena como "products/datasheets/{id}/{filename}"
+    data = minio.download(p.datasheet_path)
     filename = p.datasheet_path.split("/")[-1]
     return StreamingResponse(
         io.BytesIO(data),

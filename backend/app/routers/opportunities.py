@@ -39,6 +39,7 @@ class OpportunityOut(OpportunityIn):
     numero_oportunidad: Optional[str] = None
     file_manual_excel: Optional[str] = None
     file_manual_pdf: Optional[str] = None
+    quotation_estado: Optional[str] = None   # estado de la cotización asociada
     created_at: datetime
     updated_at: datetime
 
@@ -65,7 +66,19 @@ def list_opportunities(
         q = q.filter(Opportunity.probabilidad == probabilidad)
     if asesor:
         q = q.filter(Opportunity.asesor.ilike(f"%{asesor}%"))
-    return q.order_by(Opportunity.updated_at.desc()).offset(skip).limit(limit).all()
+    opps = q.order_by(Opportunity.updated_at.desc()).offset(skip).limit(limit).all()
+
+    # Enriquecer con estado de la cotización asociada
+    from app.models.quotation import Quotation
+    quote_ids = [o.quotation_id for o in opps if o.quotation_id]
+    if quote_ids:
+        estado_map = {
+            qt.id: qt.estado
+            for qt in db.query(Quotation).filter(Quotation.id.in_(quote_ids)).all()
+        }
+        for o in opps:
+            o.quotation_estado = estado_map.get(o.quotation_id) if o.quotation_id else None
+    return opps
 
 
 @router.get("/{opp_id}", response_model=OpportunityOut)

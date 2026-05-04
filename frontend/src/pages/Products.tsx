@@ -343,15 +343,16 @@ function DatasheetCell({ product }: { product: any }) {
     mutationFn: (file: File) => uploadDatasheet(product.id, file),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   })
+  const hasDoc = !!product.datasheet_path
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       <input ref={ref} type="file" accept=".pdf,.xlsx,.docx,.jpg,.png"
         className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f) }} />
-      {product.datasheet_path ? (
+      {hasDoc ? (
         <button
           onClick={() => downloadFile(`/products/${product.id}/datasheet`, product.datasheet_path.split('/').pop() || 'datasheet')}
-          className="p-1 rounded text-brand-500 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+          className="p-1 rounded text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
           title="Descargar datasheet">
           <Download size={13} />
         </button>
@@ -359,8 +360,12 @@ function DatasheetCell({ product }: { product: any }) {
       <button
         onClick={() => ref.current?.click()}
         disabled={upload.isPending}
-        className="p-1 rounded text-gray-300 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-        title={product.datasheet_path ? 'Reemplazar datasheet' : 'Subir datasheet'}>
+        className={`p-1 rounded transition-colors ${
+          hasDoc
+            ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+            : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
+        }`}
+        title={hasDoc ? 'Reemplazar datasheet' : 'Sin datasheet — clic para subir'}>
         <Paperclip size={13} />
       </button>
     </div>

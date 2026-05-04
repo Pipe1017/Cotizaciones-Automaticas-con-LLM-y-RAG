@@ -3,7 +3,7 @@ import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
   getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
   getQuotationItems, editQuotation, newQuotationVersion,
-  uploadOpportunityExcel, uploadOpportunityPdf,
+  uploadOpportunityExcel, uploadOpportunityPdf, updateQuotationStatus,
 } from '../lib/api'
 import { useState, useRef } from 'react'
 import {
@@ -682,6 +682,7 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
   opp: any; companies: any[]; businessLines: any[]; onEdit: (o: any) => void; onDelete: (o: any) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const qc = useQueryClient()
 
   const blName = (id: number) => (businessLines as any[]).find(b => b.id === id)?.nombre ?? '—'
   const coName = (id: number) => (companies as any[]).find(c => c.id === id)?.nombre ?? '—'
@@ -740,11 +741,22 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
             <span className="block text-[10px] text-amber-600 font-medium">{margenDisplay} margen</span>
           )}
         </td>
-        <td className="px-3 py-3">
+        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
           {opp.quotation_id ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
-              <FileText size={10} /> {opp.numero_oportunidad || `#${opp.quotation_id}`}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+                <FileText size={10} /> {opp.numero_oportunidad || `#${opp.quotation_id}`}
+              </span>
+              <select
+                value={opp.quotation_estado || 'borrador'}
+                onChange={e => updateQuotationStatus(opp.quotation_id, e.target.value).then(() => qc.invalidateQueries({ queryKey: ['opportunities'] }))}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 cursor-pointer w-fit ${
+                  opp.quotation_estado === 'enviada' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                <option value="borrador">borrador</option>
+                <option value="enviada">enviada</option>
+              </select>
+            </div>
           ) : (opp.file_manual_excel || opp.file_manual_pdf) ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
               <Upload size={10} /> Archivo cargado

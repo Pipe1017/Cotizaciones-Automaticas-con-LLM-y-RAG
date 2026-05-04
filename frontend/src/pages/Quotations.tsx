@@ -6,9 +6,15 @@ import PageHeader from '../components/PageHeader'
 
 const ESTADO_COLORS: Record<string, string> = {
   borrador: 'bg-gray-100 text-gray-600',
-  enviada: 'bg-blue-100 text-blue-700',
-  aprobada: 'bg-green-100 text-green-700',
-  rechazada: 'bg-red-100 text-red-700',
+  enviada:  'bg-blue-100 text-blue-700',
+}
+
+const ETAPA_COLORS: Record<string, string> = {
+  'In Progress':         'bg-brand-50 text-brand-700',
+  'Won':                 'bg-emerald-100 text-emerald-700',
+  'Lost':                'bg-red-100 text-red-600',
+  'No Bid':              'bg-gray-100 text-gray-500',
+  'Cancelled by Client': 'bg-amber-100 text-amber-700',
 }
 
 // ── Quotation row (expandable items) ──────────────────────────
@@ -51,13 +57,20 @@ function QuotationRow({ q, companies }: { q: any; companies: any[] }) {
           {q.total_usd && Number(q.total_usd) > 0 ? `$${Number(q.total_usd).toLocaleString()}` : '—'}
         </td>
         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-          <select value={q.estado}
-            onChange={e => changeStatus.mutate(e.target.value)}
-            className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:ring-1 focus:ring-brand-400 ${ESTADO_COLORS[q.estado] || ''}`}>
-            {['borrador', 'enviada', 'aprobada', 'rechazada'].map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-1">
+            <select value={q.estado}
+              onChange={e => changeStatus.mutate(e.target.value)}
+              className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:ring-1 focus:ring-brand-400 ${ESTADO_COLORS[q.estado] || 'bg-gray-100 text-gray-600'}`}>
+              {['borrador', 'enviada'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {q.opp_etapa && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ETAPA_COLORS[q.opp_etapa] || 'bg-gray-50 text-gray-400'}`}>
+                {q.opp_etapa}
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3">
           <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
@@ -189,7 +202,7 @@ export default function Quotations() {
       <div className="flex gap-3 flex-wrap">
         <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="input-base w-44">
           <option value="">Estado: Todos</option>
-          {['borrador', 'enviada', 'aprobada', 'rechazada'].map(s => (
+          {['borrador', 'enviada'].map(s => (
             <option key={s} value={s} className="capitalize">{s}</option>
           ))}
         </select>

@@ -129,6 +129,7 @@ class QuotationOut(BaseModel):
     file_path_cotizacion: Optional[str]
     file_path_pdf: Optional[str]
     created_at: datetime
+    opp_etapa: Optional[str] = None   # etapa de la oportunidad asociada
 
     class Config:
         from_attributes = True
@@ -145,6 +146,8 @@ def list_quotations(
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
+    from app.models.opportunity import Opportunity
+    from sqlalchemy.orm import aliased
     q = db.query(Quotation)
     if company_id:
         q = q.filter(Quotation.company_id == company_id)
@@ -152,7 +155,18 @@ def list_quotations(
         q = q.filter(Quotation.estado == estado)
     if business_line_id:
         q = q.filter(Quotation.business_line_id == business_line_id)
-    return q.order_by(Quotation.created_at.desc()).offset(skip).limit(limit).all()
+    quotations = q.order_by(Quotation.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Enriquecer con etapa de la oportunidad asociada
+    opp_map = {
+        o.quotation_id: o.etapa
+        for o in db.query(Opportunity).filter(
+            Opportunity.quotation_id.in_([qt.id for qt in quotations])
+        ).all()
+    }
+    for qt in quotations:
+        qt.opp_etapa = opp_map.get(qt.id)
+    return quotations
 
 
 @router.get("/cities")
@@ -865,7 +879,7 @@ def delete_quotation(quote_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/{quote_id}/status")
 def update_status(quote_id: int, estado: str, db: Session = Depends(get_db)):
-    allowed = {"borrador", "enviada", "aprobada", "rechazada"}
+    allowed = {"borrador", "enviada"}
     if estado not in allowed:
         raise HTTPException(status_code=400, detail=f"Estado inválido. Opciones: {allowed}")
     quote = db.query(Quotation).filter(Quotation.id == quote_id).first()
