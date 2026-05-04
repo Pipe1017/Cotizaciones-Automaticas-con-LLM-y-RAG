@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getProducts, getBusinessLines, createProduct, updateProduct, deleteProduct,
   updateProductPrice, getProveedores, createProveedor, updateProveedor,
-  deleteProveedor, uploadDatasheet, downloadFile,
+  deleteProveedor, uploadDatasheet, downloadFile, duplicateProduct,
 } from '../lib/api'
 import { useState, useRef } from 'react'
-import { Pencil, Check, X, Plus, Trash2, Paperclip, Download, Building2 } from 'lucide-react'
+import { Pencil, Check, X, Plus, Trash2, Paperclip, Download, Building2, Copy } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 const timeAgo = (iso: string) => {
@@ -373,8 +373,18 @@ function DatasheetCell({ product }: { product: any }) {
 }
 
 function RowActions({ product, onEdit, onDelete }: { product: any; onEdit: (p: any) => void; onDelete: (p: any) => void }) {
+  const qc = useQueryClient()
+  const dup = useMutation({
+    mutationFn: () => duplicateProduct(product.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  })
   return (
     <>
+      <button onClick={() => dup.mutate()} disabled={dup.isPending}
+        title="Duplicar producto"
+        className="p-1.5 rounded text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+        <Copy size={14} />
+      </button>
       <button onClick={() => onEdit(product)}
         className="p-1.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
         <Pencil size={14} />

@@ -82,10 +82,10 @@ def fill_template(template_bytes: bytes, data: dict) -> bytes:
         cell(row, 14, float(item.get("precio_unitario_usd", 0)))
         cell(row, 15, float(item.get("precio_total_usd", 0)))
 
-    # Totals
-    cell(22, 15, float(data.get("subtotal_usd", 0)))
-    cell(23, 15, float(data.get("subtotal_usd", 0)) * float(data.get("iva_pct", 19)) / 100)
-    cell(24, 15, float(data.get("total_usd", 0)))
+    # Totals — columna R (18) según el template
+    cell(22, 18, float(data.get("subtotal_usd", 0)))
+    cell(23, 18, float(data.get("subtotal_usd", 0)) * float(data.get("iva_pct", 19)) / 100)
+    cell(24, 18, float(data.get("total_usd", 0)))
 
     # Commercial conditions
     cell(28, 3, data.get("observaciones", ""))

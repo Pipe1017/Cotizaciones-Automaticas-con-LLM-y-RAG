@@ -157,10 +157,14 @@ async def upload_datasheet(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     from app.services.minio_service import MinioService
-    from app.config import settings
 
     content = await file.read()
     minio = MinioService()
+
+    # Crear bucket si no existe
+    if not minio.client.bucket_exists("products"):
+        minio.client.make_bucket("products")
+
     path = minio.upload(
         "products",
         f"datasheets/{product_id}/{file.filename}",
@@ -171,6 +175,26 @@ async def upload_datasheet(
     db.commit()
     db.refresh(p)
     return p
+
+
+@router.post("/{product_id}/duplicate", response_model=ProductOut, status_code=201)
+def duplicate_product(product_id: int, db: Session = Depends(get_db)):
+    """Duplica un producto con el mismo nombre + ' (copia)'"""
+    original = db.query(Product).filter(Product.id == product_id).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    copy_data = {
+        c.name: getattr(original, c.name)
+        for c in Product.__table__.columns
+        if c.name not in ("id", "created_at", "updated_at", "datasheet_path")
+    }
+    copy_data["modelo_hoppecke"] = (original.modelo_hoppecke or "") + " (copia)"
+    new_product = Product(**copy_data)
+    db.add(new_product)
+    db.commit()
+    db.refresh(new_product)
+    return new_product
 
 
 @router.get("/{product_id}/datasheet")

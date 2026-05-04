@@ -149,6 +149,9 @@ export const updateProveedor = (id: number, data: object) =>
 export const deleteProveedor = (id: number) =>
   api.delete(`/proveedores/${id}`)
 
+export const duplicateProduct = (id: number) =>
+  api.post(`/products/${id}/duplicate`).then(r => r.data)
+
 export const uploadDatasheet = (productId: number, file: File) => {
   const fd = new FormData()
   fd.append('file', file)
