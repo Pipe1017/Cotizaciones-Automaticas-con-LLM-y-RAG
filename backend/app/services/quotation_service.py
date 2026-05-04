@@ -258,13 +258,20 @@ class QuotationService:
         except Exception as e:
             quote.observaciones = (quote.observaciones or "") + f"\n[Cotización Word pendiente: {str(e)}]"
 
-        # 11. PDF combinado (carta + cotización vía LibreOffice)
+        # 11. PDF combinado (carta + cotización + datasheets si están disponibles)
         try:
             if not carta_bytes:
                 carta_bytes = generate_carta(doc_data)
             if not cot_bytes:
                 cot_bytes = generate_cotizacion(doc_data)
             pdf_bytes = generate_pdf_from_words(carta_bytes, cot_bytes)
+
+            # Buscar datasheets PDF de los productos cotizados
+            datasheet_pdfs = self._get_datasheet_pdfs(ai_items)
+            if datasheet_pdfs:
+                from app.services.pdf_service import merge_pdfs
+                pdf_bytes = merge_pdfs([pdf_bytes] + datasheet_pdfs)
+
             quote.file_path_pdf = self.minio.upload(
                 settings.minio_bucket_quotations,
                 f"{year_month}/{numero}.pdf",
@@ -277,6 +284,39 @@ class QuotationService:
         self.db.commit()
         self.db.refresh(quote)
         return quote
+
+    def _get_datasheet_pdfs(self, ai_items: list) -> list[bytes]:
+        """Descarga los datasheets PDF de los productos referenciados en los ítems."""
+        refs = [it.get("referencia_usa") for it in ai_items if it.get("referencia_usa")]
+        saps = [it.get("referencia_cod_proveedor") for it in ai_items if it.get("referencia_cod_proveedor")]
+        if not refs and not saps:
+            return []
+
+        from sqlalchemy import or_
+        products = self.db.query(Product).filter(
+            Product.activo == True,
+            Product.datasheet_path.isnot(None),
+            or_(
+                Product.referencia_usa.in_(refs) if refs else False,
+                Product.codigo_sap.in_(saps) if saps else False,
+            )
+        ).all()
+
+        pdfs = []
+        seen = set()
+        for p in products:
+            if p.datasheet_path in seen:
+                continue
+            seen.add(p.datasheet_path)
+            # Solo adjuntar si el datasheet es un PDF
+            if not p.datasheet_path.lower().endswith(".pdf"):
+                continue
+            try:
+                data = self.minio.download(p.datasheet_path)
+                pdfs.append(data)
+            except Exception:
+                pass
+        return pdfs
 
     def _bl_nombre(self, bl_id: int) -> str:
         from app.models.business_line import BusinessLine
