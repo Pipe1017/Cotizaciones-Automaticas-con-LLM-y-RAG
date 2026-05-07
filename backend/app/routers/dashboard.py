@@ -60,10 +60,13 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
     total_pipeline = float(
         opp_base.with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0)).scalar() or 0
     )
-    comprometido = float(
-        opp_base.filter(Opportunity.probabilidad == "Comprometida")
-        .with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0))
-        .scalar() or 0
+    # Comprometido = pipeline ponderado (valor × prob_go × prob_get / 10000)
+    opps_for_pond = opp_base.with_entities(
+        Opportunity.valor_usd, Opportunity.prob_go, Opportunity.prob_get
+    ).all()
+    comprometido = sum(
+        float(o.valor_usd or 0) * (o.prob_go or 50) * (o.prob_get or 50) / 10000
+        for o in opps_for_pond
     )
     total_opps = opp_base.count()
 

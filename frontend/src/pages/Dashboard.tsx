@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getDashboardKpis, getLatestRates, getBusinessLines } from '../lib/api'
 import {
-  TrendingUp, Users, FileText, DollarSign, Target, Activity,
-  RefreshCw,
+  TrendingUp, FileText, DollarSign, Target, Activity,
+  RefreshCw, Euro, Banknote, Calendar,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, PieChart, Pie, Legend,
+  ResponsiveContainer, Cell,
 } from 'recharts'
 
 // ── Palette for BL bars ──────────────────────────────────────────────────────
@@ -17,9 +17,6 @@ const ETAPA_ORDER = [
   'En Proceso', 'Cotizando', 'Enviada', 'Ganada', 'Perdida', 'Cancelada por Cliente',
 ]
 
-const QUOTE_COLORS: Record<string, string> = {
-  borrador: '#94a3b8', enviada: '#3b82f6', aprobada: '#10b981', rechazada: '#ef4444',
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -118,10 +115,6 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
     .map(e => ({ etapa: e, count: (kpis?.oportunidades_por_etapa ?? {})[e] ?? 0 }))
     .filter(d => d.count > 0)
 
-  // Quote status pie
-  const quoteStatusData = Object.entries(kpis?.cotizaciones_por_estado ?? {}).map(([k, v]) => ({
-    name: k, value: v as number, fill: QUOTE_COLORS[k] ?? '#94a3b8',
-  }))
 
   return (
     <div className="p-8 space-y-7 max-w-[1400px]">
@@ -190,25 +183,25 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
           {/* ── Exchange rates ── */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'EUR / USD', val: rates?.EUR ? Number(rates.EUR).toFixed(4) : '—', flag: '🇪🇺' },
-              { label: 'COP / USD', val: rates?.COP ? Number(rates.COP).toFixed(6) : '—', flag: '🇨🇴' },
-              { label: 'Actualización', val: rates?.fecha ?? '—', flag: '📅' },
+              { label: 'EUR / USD', val: rates?.EUR ? Number(rates.EUR).toFixed(4) : '—', Icon: Euro },
+              { label: 'COP / USD', val: rates?.COP ? Number(rates.COP).toFixed(6) : '—', Icon: Banknote },
+              { label: 'Actualización', val: rates?.fecha ?? '—', Icon: Calendar },
             ].map(r => (
               <div key={r.label} className="card px-5 py-3.5 flex justify-between items-center">
                 <div>
                   <p className="text-xs text-gray-500 font-medium">{r.label}</p>
                   <p className="text-lg font-bold text-gray-900 mt-0.5">{r.val}</p>
                 </div>
-                <span className="text-2xl">{r.flag}</span>
+                <r.Icon size={20} className="text-gray-300" />
               </div>
             ))}
           </div>
 
           {/* ── Charts row ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5">
 
-            {/* Pipeline por línea (2 cols wide) */}
-            <div className="card p-5 lg:col-span-2">
+            {/* Pipeline por línea */}
+            <div className="card p-5">
               <SectionHeader title="Pipeline por Línea de Negocio (USD)" />
               {pipelineData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -236,32 +229,6 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
               )}
             </div>
 
-            {/* Quote status pie (1 col) */}
-            <div className="card p-5">
-              <SectionHeader title="Estado Cotizaciones" />
-              {quoteStatusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={quoteStatusData} dataKey="value" nameKey="name"
-                      cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                      paddingAngle={3}>
-                      {quoteStatusData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v: any, name: any) => [v, name]}
-                      contentStyle={{ border: 'none', borderRadius: 8, boxShadow: '0 4px 12px rgb(0,0,0,0.1)', fontSize: 12 }}
-                    />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-52 flex items-center justify-center">
-                  <p className="text-gray-400 text-sm">Sin cotizaciones</p>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* ── Funnel + Pipeline table ── */}
