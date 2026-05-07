@@ -37,8 +37,38 @@ async def _scheduled_backup():
         db.close()
 
 
+def _ensure_admin_user():
+    """Si no hay ningún usuario en la BD, crea uno por defecto al arrancar."""
+    from app.database import SessionLocal
+    from app.models.user import User
+    from app.core.security import hash_password
+    import logging
+    log = logging.getLogger(__name__)
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            u = User(
+                username="admin",
+                nombre="Administrador",
+                hashed_password=hash_password("Admin123"),
+                rol="editor",
+                activo=True,
+            )
+            db.add(u)
+            db.commit()
+            log.warning("=" * 60)
+            log.warning("USUARIO ADMIN CREADO AUTOMÁTICAMENTE")
+            log.warning("  username: admin")
+            log.warning("  password: Admin123")
+            log.warning("  *** CAMBIA LA CONTRASEÑA DESPUÉS DEL PRIMER LOGIN ***")
+            log.warning("=" * 60)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _ensure_admin_user()
     # Cron: revisa cada hora si toca hacer backup
     scheduler.add_job(_scheduled_backup, "cron", minute=0)
     scheduler.start()
