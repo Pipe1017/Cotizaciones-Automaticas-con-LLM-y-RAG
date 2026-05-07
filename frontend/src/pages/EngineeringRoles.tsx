@@ -26,7 +26,7 @@ function Modal({ open, onClose, title, children }: any) {
   )
 }
 
-export default function EngineeringRoles() {
+export default function EngineeringRoles({ embedded }: { embedded?: boolean } = {}) {
   const qc = useQueryClient()
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<any>({ ...EMPTY })
@@ -56,7 +56,7 @@ export default function EngineeringRoles() {
     : '—'
 
   return (
-    <div className="p-6 max-w-4xl space-y-6">
+    <div className={embedded ? 'space-y-5' : 'p-6 max-w-4xl space-y-6'}>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">

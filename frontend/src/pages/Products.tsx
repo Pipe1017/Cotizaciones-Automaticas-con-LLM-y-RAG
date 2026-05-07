@@ -5,8 +5,9 @@ import {
   deleteProveedor, uploadDatasheet, downloadFile, duplicateProduct,
 } from '../lib/api'
 import { useState, useRef } from 'react'
-import { Pencil, Check, X, Plus, Trash2, Link2, Download, Building2, Copy } from 'lucide-react'
+import { Pencil, Check, X, Plus, Trash2, Link2, Download, Building2, Copy, HardHat } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import EngineeringRoles from './EngineeringRoles'
 
 const timeAgo = (iso: string) => {
   if (!iso) return '—'
@@ -488,7 +489,7 @@ function ProveedoresTab() {
 
 // ── Main page ──────────────────────────────────────────────────
 export default function Products({ allowedBL }: { allowedBL?: number[] }) {
-  const [mainTab, setMainTab] = useState<'catalogo' | 'proveedores'>('catalogo')
+  const [mainTab, setMainTab] = useState<'catalogo' | 'proveedores' | 'servicios'>('catalogo')
   const [activeBL, setActiveBL] = useState(allowedBL?.[0] ?? 1)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -529,25 +530,27 @@ export default function Products({ allowedBL }: { allowedBL?: number[] }) {
         subtitle={`${(products as any[]).length} referencias · Clic en precio para editar inline`}
       />
 
-      {/* Main tabs: Catálogo / Proveedores */}
+      {/* Main tabs */}
       <div className="flex gap-1 mb-5 border-b border-gray-200">
         {[
-          { id: 'catalogo',    label: 'Catálogo' },
-          { id: 'proveedores', label: 'Proveedores' },
+          { id: 'catalogo',    label: 'Catálogo',   icon: null },
+          { id: 'proveedores', label: 'Proveedores', icon: <Building2 size={14}/> },
+          { id: 'servicios',   label: 'Servicios de Ingeniería', icon: <HardHat size={14}/> },
         ].map(t => (
           <button key={t.id}
             onClick={() => setMainTab(t.id as any)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               mainTab === t.id
                 ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
-            {t.id === 'proveedores' ? <span className="flex items-center gap-1.5"><Building2 size={14}/>{t.label}</span> : t.label}
+            {t.icon}{t.label}
           </button>
         ))}
       </div>
 
       {mainTab === 'proveedores' && <ProveedoresTab />}
+      {mainTab === 'servicios'   && <EngineeringRoles embedded />}
 
       {mainTab === 'catalogo' && <>
       {/* BL tabs */}
