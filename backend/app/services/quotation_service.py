@@ -48,18 +48,10 @@ class QuotationService:
 
     def _catalog_json(self, business_line_id: int = 1, landed_pct: float = 0, margen_pct: float = 0) -> str:
         """
-        Devuelve solo los productos relevantes para la línea de negocio,
-        con precios ajustados por % landed + % margen.
+        Devuelve todos los productos activos con precios ajustados por % landed + % margen.
+        Se envía el catálogo completo para que la IA pueda cruzar categorías en un mismo prompt.
         """
-        categorias = self._BL_CATEGORIAS.get(business_line_id, ["traccion", "estacionaria"])
-        products = (
-            self.db.query(Product)
-            .filter(Product.activo == True, Product.categoria.in_(categorias))
-            .all()
-        )
-        # Fallback: si no hay productos en esas categorías, traer todos
-        if not products:
-            products = self.db.query(Product).filter(Product.activo == True).all()
+        products = self.db.query(Product).filter(Product.activo == True).all()
         multiplier = (1 + landed_pct / 100) * (1 + margen_pct / 100)
         catalog = [
             {
