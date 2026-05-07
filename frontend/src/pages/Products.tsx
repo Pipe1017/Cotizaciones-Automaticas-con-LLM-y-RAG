@@ -240,46 +240,46 @@ function TechnicalTable({ products, onEdit, onDelete, showVoltaje, proveedoresMa
 }) {
   return (
     <table className="w-full text-sm">
-      <thead className="bg-gray-50 border-b border-gray-100">
+      <thead className="bg-slate-800 border-b border-slate-700">
         <tr>
-          {showVoltaje && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Voltaje</th>}
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modelo</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Proveedor</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referencia</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Conector</th>
-          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ah</th>
-          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">kWh</th>
-          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">kg</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio €</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio $</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modificado</th>
-          <th className="px-4 py-3" />
+          {showVoltaje && <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Voltaje</th>}
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Modelo</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Proveedor</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Referencia</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Conector</th>
+          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Ah</th>
+          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-300 uppercase tracking-wide">kWh</th>
+          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-300 uppercase tracking-wide">kg</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Precio €</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Precio $</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Modificado</th>
+          <th className="sticky right-0 bg-slate-800 px-4 py-3 w-20" />
         </tr>
       </thead>
-      <tbody className="divide-y divide-gray-50">
+      <tbody className="divide-y divide-slate-100">
         {products.map(p => (
-          <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
+          <tr key={p.id} className="hover:bg-slate-50 even:bg-slate-50/60 transition-colors group">
             {showVoltaje && (
               <td className="px-4 py-2.5">
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${VOLT_COLORS[p.voltaje] || 'bg-gray-100 text-gray-600'}`}>{p.voltaje || '—'}</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${VOLT_COLORS[p.voltaje] || 'bg-slate-100 text-slate-600'}`}>{p.voltaje || '—'}</span>
               </td>
             )}
-            <td className="px-4 py-2.5 font-medium text-gray-900">{p.modelo_hoppecke}</td>
+            <td className="px-4 py-2.5 font-semibold text-slate-800">{p.modelo_hoppecke}</td>
             <td className="px-4 py-2.5">
               <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
                 {p.proveedor_id ? (proveedoresMap[p.proveedor_id] || '—') : '—'}
               </span>
             </td>
-            <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{p.referencia_usa || '—'}</td>
-            <td className="px-4 py-2.5 text-gray-500 text-xs">{p.tipo_conector || '—'}</td>
-            <td className="px-4 py-2.5 text-right text-gray-700">{p.capacidad_ah || '—'}</td>
-            <td className="px-4 py-2.5 text-right text-gray-600">{p.kwh || '—'}</td>
-            <td className="px-4 py-2.5 text-right text-gray-600">{p.peso_kg || '—'}</td>
+            <td className="px-4 py-2.5 text-slate-500 text-xs font-mono">{p.referencia_usa || '—'}</td>
+            <td className="px-4 py-2.5 text-slate-500 text-xs">{p.tipo_conector || '—'}</td>
+            <td className="px-4 py-2.5 text-right text-slate-700">{p.capacidad_ah || '—'}</td>
+            <td className="px-4 py-2.5 text-right text-slate-600">{p.kwh || '—'}</td>
+            <td className="px-4 py-2.5 text-right text-slate-600">{p.peso_kg || '—'}</td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_eur" /></td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_usd" /></td>
-            <td className="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap">{timeAgo(p.updated_at)}</td>
-            <td className="px-4 py-2.5">
-              <div className="flex items-center gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">{timeAgo(p.updated_at)}</td>
+            <td className="sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 px-3 py-2.5 transition-colors">
+              <div className="flex items-center gap-0.5">
                 <DatasheetCell product={p} />
                 <RowActions product={p} onEdit={onEdit} onDelete={onDelete} />
               </div>
@@ -297,34 +297,34 @@ function SimpleTable({ products, onEdit, onDelete, proveedoresMap }: {
 }) {
   return (
     <table className="w-full text-sm">
-      <thead className="bg-gray-50 border-b border-gray-100">
+      <thead className="bg-slate-800 border-b border-slate-700">
         <tr>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nombre / Modelo</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Proveedor</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referencia</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Descripción</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio €</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Precio $</th>
-          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modificado</th>
-          <th className="px-4 py-3" />
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Nombre / Modelo</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Proveedor</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Referencia</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Descripción</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Precio €</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Precio $</th>
+          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Modificado</th>
+          <th className="sticky right-0 bg-slate-800 px-4 py-3 w-20" />
         </tr>
       </thead>
-      <tbody className="divide-y divide-gray-50">
+      <tbody className="divide-y divide-slate-100">
         {products.map(p => (
-          <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
-            <td className="px-4 py-2.5 font-medium text-gray-900 max-w-[200px]">{p.modelo_hoppecke}</td>
+          <tr key={p.id} className="hover:bg-slate-50 even:bg-slate-50/60 transition-colors group">
+            <td className="px-4 py-2.5 font-semibold text-slate-800 max-w-[200px]">{p.modelo_hoppecke}</td>
             <td className="px-4 py-2.5">
               <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
                 {p.proveedor_id ? (proveedoresMap[p.proveedor_id] || '—') : '—'}
               </span>
             </td>
-            <td className="px-4 py-2.5 text-gray-500 text-xs font-mono whitespace-nowrap">{p.referencia_usa || '—'}</td>
-            <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate" title={p.descripcion_comercial}>{p.descripcion_comercial || '—'}</td>
+            <td className="px-4 py-2.5 text-slate-500 text-xs font-mono whitespace-nowrap">{p.referencia_usa || '—'}</td>
+            <td className="px-4 py-2.5 text-slate-500 text-xs max-w-xs truncate" title={p.descripcion_comercial}>{p.descripcion_comercial || '—'}</td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_eur" /></td>
             <td className="px-4 py-2.5"><PriceCell product={p} field="precio_neto_usd" /></td>
-            <td className="px-4 py-2.5 text-gray-400 text-xs">{timeAgo(p.updated_at)}</td>
-            <td className="px-4 py-2.5">
-              <div className="flex items-center gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <td className="px-4 py-2.5 text-slate-400 text-xs">{timeAgo(p.updated_at)}</td>
+            <td className="sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 px-3 py-2.5 transition-colors">
+              <div className="flex items-center gap-0.5">
                 <DatasheetCell product={p} />
                 <RowActions product={p} onEdit={onEdit} onDelete={onDelete} />
               </div>
@@ -426,27 +426,27 @@ function ProveedoresTab() {
       </div>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-slate-800 border-b border-slate-700">
             <tr>
               {['Proveedor', 'País', 'Sitio web', 'Contacto', 'Email', ''].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-slate-100">
             {(proveedores as any[]).map((p: any) => (
-              <tr key={p.id} className="hover:bg-gray-50 group">
-                <td className="px-4 py-3 font-semibold text-gray-800">{p.nombre}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{p.pais}</td>
+              <tr key={p.id} className="hover:bg-slate-50 even:bg-slate-50/60 transition-colors group">
+                <td className="px-4 py-3 font-semibold text-slate-800">{p.nombre}</td>
+                <td className="px-4 py-3 text-slate-500 text-xs">{p.pais}</td>
                 <td className="px-4 py-3 text-xs">
                   {p.sitio_web ? <a href={p.sitio_web} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">{p.sitio_web}</a> : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600 text-xs">{p.contacto_nombre || '—'}</td>
-                <td className="px-4 py-3 text-gray-600 text-xs">{p.contacto_email || '—'}</td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100">
-                    <button onClick={() => openEdit(p)} className="p-1.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50"><Pencil size={13} /></button>
-                    <button onClick={() => remove.mutate(p.id)} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+                <td className="px-4 py-3 text-slate-600 text-xs">{p.contacto_nombre || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{p.contacto_email || '—'}</td>
+                <td className="sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 px-3 py-3 transition-colors">
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50"><Pencil size={13} /></button>
+                    <button onClick={() => remove.mutate(p.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
                   </div>
                 </td>
               </tr>

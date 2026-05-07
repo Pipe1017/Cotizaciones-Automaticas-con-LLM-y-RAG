@@ -193,21 +193,21 @@ export default function Users() {
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Usuario</th>
-              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Login</th>
-              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Rol</th>
-              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Estado</th>
-              <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Acciones</th>
+            <tr className="bg-slate-800 border-b border-slate-700">
+              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Usuario</th>
+              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Login</th>
+              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Rol</th>
+              <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Estado</th>
+              <th className="sticky right-0 bg-slate-800 px-5 py-3 text-right text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-300">Cargando…</td></tr>
             ) : allUsers.length === 0 ? (
               <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-300">Sin usuarios registrados</td></tr>
             ) : allUsers.map((u: any) => (
-              <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+              <tr key={u.id} className="hover:bg-slate-50 even:bg-slate-50/60 transition-colors group">
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-brand-900 flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -227,7 +227,7 @@ export default function Users() {
                   <span className={`inline-block w-2 h-2 rounded-full ${u.activo ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                   <span className="text-xs text-slate-400 ml-1.5">{u.activo ? 'Activo' : 'Inactivo'}</span>
                 </td>
-                <td className="px-5 py-3.5">
+                <td className="sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 px-4 py-3.5 transition-colors">
                   <div className="flex items-center justify-end gap-1">
                     {/* Cambiar rol */}
                     <button

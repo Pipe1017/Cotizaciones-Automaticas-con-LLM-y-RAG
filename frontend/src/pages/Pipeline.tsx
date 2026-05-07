@@ -893,7 +893,7 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
   return (
     <>
       <tr
-        className={`transition-colors cursor-pointer group ${expanded ? 'bg-brand-50/40' : 'hover:bg-slate-50 even:bg-slate-50/60'}`}
+        className={`transition-colors cursor-pointer group ${expanded ? 'bg-brand-100 shadow-[inset_3px_0_0_#0f2560]' : 'hover:bg-slate-50 even:bg-slate-50/60'}`}
         onClick={() => setExpanded(e => !e)}
       >
         <td className="px-3 py-3">
@@ -947,7 +947,7 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
         </td>
         <td className="px-3 py-3 text-slate-500 text-xs whitespace-nowrap">{opp.asesor || '—'}</td>
         {/* Acciones — sticky a la derecha */}
-        <td className="sticky right-0 px-3 py-3 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100"
+        <td className={`sticky right-0 px-3 py-3 transition-colors border-l border-slate-100 ${expanded ? 'bg-brand-100' : 'bg-white group-hover:bg-slate-50'}`}
           onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1">
             {expanded

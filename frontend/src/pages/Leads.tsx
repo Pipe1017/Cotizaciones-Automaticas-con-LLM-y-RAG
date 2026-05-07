@@ -123,25 +123,25 @@ export default function Leads() {
       {isLoading ? <p className="text-gray-400">Cargando...</p> : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-slate-800 border-b border-slate-700">
               <tr>{['Empresa', 'Contacto', 'Industria / Rol', 'Etapa', 'Prioridad', 'Valor Est.', 'Próx. Acción', ''].map(h =>
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}
+                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {(leads as any[]).map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={l.id} className="hover:bg-slate-50 even:bg-slate-50/60 transition-colors group">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{l.empresa}</p>
-                    {l.email && <p className="text-xs text-gray-400">{l.email}</p>}
+                    <p className="font-semibold text-slate-800">{l.empresa}</p>
+                    {l.email && <p className="text-xs text-slate-400">{l.email}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <p>{l.contacto || '—'}</p>
-                    {l.cargo && <p className="text-xs text-gray-400">{l.cargo}</p>}
+                    <p className="text-slate-700">{l.contacto || '—'}</p>
+                    {l.cargo && <p className="text-xs text-slate-400">{l.cargo}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-gray-500 text-xs">{l.industria || '—'}</p>
-                    {l.rol_estrategico && <p className="text-xs text-gray-400 italic">{l.rol_estrategico}</p>}
+                    <p className="text-slate-500 text-xs">{l.industria || '—'}</p>
+                    {l.rol_estrategico && <p className="text-xs text-slate-400 italic">{l.rol_estrategico}</p>}
                   </td>
                   <td className="px-4 py-3"><Badge variant={ETAPA_VARIANT[l.etapa] || 'gray'}>{l.etapa}</Badge></td>
                   <td className="px-4 py-3">{l.prioridad && <Badge variant={PRIORIDAD_VARIANT[l.prioridad] || 'gray'}>{l.prioridad}</Badge>}</td>
@@ -149,22 +149,22 @@ export default function Leads() {
                     {l.valor_estimado ? `$${Number(l.valor_estimado).toLocaleString()}` : '—'}
                   </td>
                   <td className="px-4 py-3 max-w-xs">
-                    <p className="text-xs text-gray-600 truncate">{l.proxima_accion || '—'}</p>
-                    {l.fecha_prox_acc && <p className="text-xs text-gray-400">{l.fecha_prox_acc}</p>}
+                    <p className="text-xs text-slate-600 truncate">{l.proxima_accion || '—'}</p>
+                    {l.fecha_prox_acc && <p className="text-xs text-slate-400">{l.fecha_prox_acc}</p>}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1 justify-end">
+                  <td className="sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 px-3 py-3 transition-colors">
+                    <div className="flex gap-1">
                       <button onClick={() => openAdvance(l)} title="Avanzar etapa"
-                        className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"><ChevronRight size={14} /></button>
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><ChevronRight size={14} /></button>
                       <button onClick={() => openEdit(l)} title="Editar"
-                        className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded transition-colors"><Pencil size={14} /></button>
+                        className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><Pencil size={14} /></button>
                       <button onClick={() => { setClockId(l.id); setModal('history') }} title="Historial"
-                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"><Clock size={14} /></button>
+                        className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"><Clock size={14} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {(leads as any[]).length === 0 && <tr><td colSpan={8} className="px-5 py-10 text-center text-gray-400">Sin leads para los filtros aplicados</td></tr>}
+              {(leads as any[]).length === 0 && <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Sin leads para los filtros aplicados</td></tr>}
             </tbody>
           </table>
         </div>

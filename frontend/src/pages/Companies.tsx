@@ -124,30 +124,31 @@ function CompanyRow({ c, onEdit, onDelete }: { c: any; onEdit: (c: any) => void;
 
   return (
     <>
-      <tr className="hover:bg-gray-50 transition-colors cursor-pointer group"
+      <tr className={`transition-colors cursor-pointer group ${open ? 'bg-brand-100 shadow-[inset_3px_0_0_#0f2560]' : 'hover:bg-slate-50 even:bg-slate-50/60'}`}
         onClick={() => setOpen(o => !o)}>
         <td className="px-4 py-3 w-8">
           {open
             ? <ChevronUp size={14} className="text-brand-400" />
-            : <ChevronDown size={14} className="text-gray-300 group-hover:text-gray-400" />}
+            : <ChevronDown size={14} className="text-slate-300 group-hover:text-slate-400" />}
         </td>
-        <td className="px-5 py-3 font-medium text-gray-900">{c.nombre}</td>
-        <td className="px-5 py-3 text-gray-500">{c.industria || '—'}</td>
-        <td className="px-5 py-3 text-gray-500">{c.ciudad || '—'}</td>
+        <td className="px-5 py-3 font-semibold text-slate-800">{c.nombre}</td>
+        <td className="px-5 py-3 text-slate-500">{c.industria || '—'}</td>
+        <td className="px-5 py-3 text-slate-500">{c.ciudad || '—'}</td>
         <td className="px-5 py-3">
           {c.region && (
             <span className="bg-brand-100 text-brand-700 px-2 py-0.5 rounded text-xs font-medium">{c.region}</span>
           )}
         </td>
-        <td className="px-5 py-3 text-gray-400 text-xs">{c.pais}</td>
-        <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
-          <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+        <td className="px-5 py-3 text-slate-400 text-xs">{c.pais}</td>
+        <td className={`sticky right-0 px-3 py-3 border-l border-slate-100 transition-colors ${open ? 'bg-brand-100' : 'bg-white group-hover:bg-slate-50'}`}
+          onClick={e => e.stopPropagation()}>
+          <div className="flex gap-1">
             <button onClick={() => onEdit(c)}
-              className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded transition-colors">
+              className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
               <Pencil size={14} />
             </button>
             <button onClick={() => onDelete(c)}
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
               <Trash2 size={14} />
             </button>
           </div>
@@ -271,15 +272,15 @@ export default function Companies({ modulo }: { modulo?: string }) {
       {isLoading ? <p className="text-gray-400">Cargando...</p> : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-slate-800 border-b border-slate-700">
               <tr>
                 <th className="px-4 py-3 w-8" />
                 {['Nombre', 'Industria', 'Ciudad', 'Regional', 'País', ''].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {filtered.map((c: any) => (
                 <CompanyRow
                   key={c.id}
