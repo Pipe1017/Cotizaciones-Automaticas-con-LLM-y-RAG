@@ -74,8 +74,12 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         .all()
     )
 
-    # Cotizaciones por estado
-    quotes_q = db.query(Quotation)
+    # Cotizaciones por estado — solo la versión activa (vinculada a la oportunidad)
+    active_quote_ids = (
+        db.query(Opportunity.quotation_id)
+        .filter(Opportunity.quotation_id.isnot(None))
+    )
+    quotes_q = db.query(Quotation).filter(Quotation.id.in_(active_quote_ids))
     if business_line_id:
         quotes_q = quotes_q.filter(Quotation.business_line_id == business_line_id)
     quotes_by_estado = (

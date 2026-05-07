@@ -111,7 +111,7 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
   // Pipeline chart data — solo BLs del módulo con oportunidades
   const pipelineData = (kpis?.pipeline ?? [])
     .filter((r: any) => r.oportunidades > 0)
-    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.business_line_id))
+    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.bl_id))
 
   // Opportunity funnel
   const funnelData = ETAPA_ORDER
@@ -305,7 +305,7 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
                 <tbody className="divide-y divide-gray-50">
                   {(kpis?.pipeline ?? [])
                     .filter((r: any) => r.oportunidades > 0)
-                    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.business_line_id))
+                    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.bl_id))
                     .map((row: any) => {
                     const pct = row.valor_total_usd > 0
                       ? (row.comprometido_usd / row.valor_total_usd * 100)
