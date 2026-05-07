@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
+import json as _json
 import io
 
 from app.database import get_db
@@ -17,6 +18,7 @@ class OpportunityIn(BaseModel):
     company_id: Optional[int] = None
     contact_id: Optional[int] = None
     business_line_id: Optional[int] = None
+    business_line_ids: Optional[list[int]] = None  # multi-BL selection
     titulo: str
     descripcion: Optional[str] = None
     valor_usd: Optional[Decimal] = None
@@ -42,6 +44,16 @@ class OpportunityOut(OpportunityIn):
     quotation_estado: Optional[str] = None   # estado de la cotización asociada
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("business_line_ids", mode="before")
+    @classmethod
+    def parse_bl_ids(cls, v):
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except Exception:
+                return None
+        return v
 
     class Config:
         from_attributes = True
@@ -91,7 +103,11 @@ def get_opportunity(opp_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=OpportunityOut, status_code=201)
 def create_opportunity(data: OpportunityIn, db: Session = Depends(get_db)):
-    opp = Opportunity(**data.model_dump())
+    import json as _json
+    d = data.model_dump()
+    if d.get("business_line_ids") is not None:
+        d["business_line_ids"] = _json.dumps(d["business_line_ids"])
+    opp = Opportunity(**d)
     db.add(opp)
     db.commit()
     db.refresh(opp)
@@ -100,10 +116,13 @@ def create_opportunity(data: OpportunityIn, db: Session = Depends(get_db)):
 
 @router.put("/{opp_id}", response_model=OpportunityOut)
 def update_opportunity(opp_id: int, data: OpportunityIn, db: Session = Depends(get_db)):
+    import json as _json
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
     for k, v in data.model_dump(exclude_unset=True).items():
+        if k == "business_line_ids" and v is not None:
+            v = _json.dumps(v)
         setattr(opp, k, v)
     db.commit()
     db.refresh(opp)

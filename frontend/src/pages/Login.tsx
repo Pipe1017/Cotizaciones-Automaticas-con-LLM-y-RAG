@@ -32,20 +32,20 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
+    <div className="min-h-screen bg-brand-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-card p-8">
+        <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden">
 
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-brand-900 rounded-xl px-5 py-3 mb-4">
-              <img src={opexLogo} alt="OPEX SAS" className="h-9 object-contain" />
-            </div>
-            <h1 className="text-lg font-bold text-slate-800">OPEX CRM</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Ingresa tus credenciales</p>
+          {/* Header navy con logo */}
+          <div className="bg-brand-900 px-8 pt-8 pb-6 flex flex-col items-center border-b-4 border-accent-500">
+            <img src={opexLogo} alt="OPEX SAS" className="h-12 object-contain brightness-0 invert mb-3" />
+            <p className="text-accent-400 text-xs font-semibold tracking-widest uppercase">Sistema de Gestión Comercial</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="px-8 py-7">
+            <h1 className="text-base font-bold text-slate-800 mb-5">Iniciar sesión</h1>
+
+          <form onSubmit={handleSubmit} className="space-y-4 mb-0">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
                 Usuario
@@ -95,9 +95,10 @@ export default function Login() {
               {loading ? 'Verificando…' : 'Ingresar'}
             </button>
           </form>
+          </div>
         </div>
 
-        <p className="text-center text-slate-400 text-xs mt-6">
+        <p className="text-center text-white/40 text-xs mt-5">
           OPEX SAS · CRM v1.2
         </p>
       </div>

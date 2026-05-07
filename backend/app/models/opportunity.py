@@ -11,6 +11,7 @@ class Opportunity(Base):
     company_id = Column(Integer, ForeignKey("companies.id"))
     contact_id = Column(Integer, ForeignKey("contacts.id"))
     business_line_id = Column(Integer, ForeignKey("business_lines.id"))
+    business_line_ids = Column(Text, nullable=True)  # JSON array e.g. "[1,2]" para multi-BL
     titulo = Column(String(300), nullable=False)
     descripcion = Column(Text)
     valor_usd = Column(Numeric(14, 2))

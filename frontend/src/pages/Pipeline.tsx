@@ -896,7 +896,18 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
         <td className="px-3 py-3 max-w-[180px]">
           <p className="font-medium text-gray-800 truncate text-sm">{opp.titulo}</p>
         </td>
-        <td className="px-3 py-3 text-xs text-gray-500 max-w-[100px] truncate">{blName(opp.business_line_id)}</td>
+        <td className="px-3 py-3 max-w-[140px]">
+          <div className="flex flex-wrap gap-1">
+            {(Array.isArray(opp.business_line_ids) && opp.business_line_ids.length > 0
+              ? opp.business_line_ids
+              : opp.business_line_id ? [opp.business_line_id] : []
+            ).map((id: number) => (
+              <span key={id} className="inline-block text-[10px] font-semibold bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded whitespace-nowrap">
+                {blName(id)}
+              </span>
+            ))}
+          </div>
+        </td>
         <td className="px-3 py-3 whitespace-nowrap">
           <Badge variant={ETAPA_VARIANT[opp.etapa] || 'gray'}>{opp.etapa || '—'}</Badge>
         </td>
@@ -960,8 +971,8 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
 const ASESORES = ['Aura María Gallego', 'Juan David Giraldo', 'Alejandro Rendón', 'Diego Arboleda']
 
 const EMPTY_OPP = {
-  company_id: '', business_line_id: '', titulo: '', descripcion: '',
-  valor_usd: '', etapa: 'En Proceso', prob_go: 50, prob_get: 50,
+  company_id: '', business_line_id: '', business_line_ids: [] as number[],
+  titulo: '', descripcion: '', etapa: 'En Proceso', prob_go: 50, prob_get: 50,
   asesor: '', apoyo_ra: '', observaciones: '',
   fecha_oportunidad: '', landed_pct: '', margen_pct: '',
 }
@@ -988,15 +999,32 @@ function OppModal({ open, onClose, editId, form, setForm, companies, businessLin
             {(companies as any[]).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Línea de Negocio</label>
-          <select className="input-base" value={form.business_line_id}
-            onChange={e => setForm({ ...form, business_line_id: e.target.value })}>
-            <option value="">— Seleccionar —</option>
-            {(businessLines as any[]).map((bl: any) => (
-              <option key={bl.id} value={bl.id}>{bl.nombre}</option>
-            ))}
-          </select>
+        <div className="col-span-2">
+          <label className="block text-xs font-semibold text-gray-600 mb-2">
+            Líneas de Negocio
+            <span className="ml-1 text-slate-400 font-normal">(selecciona todas las que apliquen)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(businessLines as any[]).map((bl: any) => {
+              const selected = (form.business_line_ids as number[]).includes(bl.id)
+              return (
+                <button key={bl.id} type="button"
+                  onClick={() => {
+                    const ids = form.business_line_ids as number[]
+                    const next = selected ? ids.filter((x: number) => x !== bl.id) : [...ids, bl.id]
+                    const primary = next.length > 0 ? next[0] : ''
+                    setForm({ ...form, business_line_ids: next, business_line_id: primary })
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    selected
+                      ? 'bg-brand-900 text-white border-brand-900'
+                      : 'bg-white text-slate-600 border-slate-300 hover:border-brand-400'
+                  }`}>
+                  {bl.nombre}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Etapa</label>
@@ -1029,11 +1057,6 @@ function OppModal({ open, onClose, editId, form, setForm, companies, businessLin
             {probCombined(form.prob_go, form.prob_get)}%
           </span>
           <span className="text-xs text-slate-400">= Go {form.prob_go}% × Get {form.prob_get}% / 100</span>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Valor USD</label>
-          <input className="input-base" value={form.valor_usd} type="number"
-            onChange={e => setForm({ ...form, valor_usd: e.target.value })} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Asesor</label>
@@ -1110,9 +1133,14 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
     queryKey: ['opportunities', params],
     queryFn: () => getOpportunities({ ...params, limit: 300 }),
   })
-  // Filtrar oportunidades al módulo activo
+  // Filtrar oportunidades al módulo activo (considera multi-BL)
   const opps = allowedBL?.length
-    ? (rawOpps as any[]).filter((o: any) => allowedBL.includes(o.business_line_id))
+    ? (rawOpps as any[]).filter((o: any) => {
+        const ids: number[] = Array.isArray(o.business_line_ids) && o.business_line_ids.length > 0
+          ? o.business_line_ids
+          : o.business_line_id ? [o.business_line_id] : []
+        return ids.some(id => allowedBL.includes(id))
+      })
     : rawOpps
 
   const { data: companies = [] } = useQuery({ queryKey: ['companies'], queryFn: () => getCompanies() })
@@ -1128,7 +1156,7 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
         ...form,
         company_id: form.company_id ? parseInt(form.company_id) : null,
         business_line_id: form.business_line_id ? parseInt(form.business_line_id) : null,
-        valor_usd: form.valor_usd || null,
+        business_line_ids: (form.business_line_ids as number[]).length > 0 ? form.business_line_ids : null,
         fecha_oportunidad: form.fecha_oportunidad || null,
         landed_pct: form.landed_pct !== '' ? parseFloat(form.landed_pct) : 0,
         margen_pct: form.margen_pct !== '' ? parseFloat(form.margen_pct) : 0,
@@ -1151,16 +1179,18 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
   })
 
   const openCreate = () => {
-    const defaultBL = allowedBL?.length === 1 ? String(allowedBL[0]) : ''
-    setForm({ ...EMPTY_OPP, business_line_id: defaultBL })
+    const defaultBLs = allowedBL?.length === 1 ? allowedBL : []
+    const defaultBL  = allowedBL?.length === 1 ? String(allowedBL[0]) : ''
+    setForm({ ...EMPTY_OPP, business_line_id: defaultBL, business_line_ids: defaultBLs })
     setEditId(null)
     setModal(true)
   }
   const openEdit = (o: any) => {
     setForm({
       company_id: o.company_id || '', business_line_id: o.business_line_id || '',
+      business_line_ids: Array.isArray(o.business_line_ids) ? o.business_line_ids : (o.business_line_id ? [o.business_line_id] : []),
       titulo: o.titulo, descripcion: o.descripcion || '',
-      valor_usd: o.valor_usd || '', etapa: o.etapa || 'En Proceso',
+      etapa: o.etapa || 'En Proceso',
       prob_go: o.prob_go ?? 50, prob_get: o.prob_get ?? 50, asesor: o.asesor || '',
       apoyo_ra: o.apoyo_ra || '', observaciones: o.observaciones || '',
       fecha_oportunidad: o.fecha_oportunidad || '',
