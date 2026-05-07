@@ -1,159 +1,362 @@
 """
-Rellena el template de cotización OPEX con openpyxl.
-
-Mapa de celdas del template cotizacion_base.xlsx:
-  [6,  7]  G6  → Cliente (nombre del cliente)
-  [11, 1]  A11 → Nº de cotización
-  [11, 3]  C11 → Fecha
-  [13, 7]  G13 → Persona contacto
-  [18]     Row → Headers de ítems (ITEM/REF/DESC/SAP/MARCA/QTD/PRECIO)
-  [20-21]  Rows → Ítems (max 2 en el template base)
-    col 1  (A) = ITEM (número)
-    col 3  (C) = REFERENCIA
-    col 4  (D) = DESCRIPCION
-    col 5  (E) = REF-COD PROVEEDOR
-    col 9  (I) = MARCA
-    col 12 (L) = QTD
-    col 14 (N) = PRECIO UNITARIO
-    col 15 (O) = PRECIO TOTAL
-  [22, 15] O22 → SUBTOTAL
-  [23, 15] O23 → IVA 19%
-  [24, 15] O24 → TOTAL
-  [29, 2]  B29 → OBSERVACIONES (texto)
-  [41, 4]  D41 → Fecha entrega
-  [43, 4]  D43 → Condiciones de entrega
-  [45, 4]  D45 → Condiciones de pago
-  [47, 4]  D47 → Condiciones garantía
-  [49, 3]  C49 → Validez de la oferta
+Genera el Excel de cotización OPEX desde código (sin template).
+Dinámico: soporta cualquier número de ítems.
+Paleta: Navy #0F2560, Orange #F97316, Light #F1F5F9.
 """
 
 from io import BytesIO
 from datetime import date
 from decimal import Decimal
+from copy import copy
 import openpyxl
-import zipfile
+from openpyxl.styles import (
+    Font, PatternFill, Alignment, Border, Side, numbers
+)
+from openpyxl.utils import get_column_letter
+
+# ── Paleta OPEX ────────────────────────────────────────────────
+NAVY   = "0F2560"
+ORANGE = "F97316"
+WHITE  = "FFFFFF"
+LIGHT  = "F1F5F9"
+GRAY   = "E2E8F0"
+TEXT   = "1E293B"
+
+# ── Columnas de la tabla de ítems ──────────────────────────────
+# A=1 margen | B=2 # | C=3 referencia | D=4 descripción |
+# E=5 SAP | F=6 marca | G=7 qty | H=8 precio unit | I=9 precio total
+COL_WIDTHS = {
+    1: 2,    # A — margen izquierdo
+    2: 6,    # B — ITEM #
+    3: 14,   # C — REFERENCIA
+    4: 34,   # D — DESCRIPCIÓN
+    5: 16,   # E — COD. PROVEEDOR
+    6: 14,   # F — MARCA
+    7: 8,    # G — QTD
+    8: 17,   # H — PRECIO UNIT. USD
+    9: 17,   # I — PRECIO TOTAL USD
+    10: 2,   # J — margen derecho
+}
+LAST_COL = 9
+FIRST_DATA_COL = 2
 
 
-ITEM_START_ROW = 20
-ITEM_END_ROW   = 21
-MAX_ITEMS      = ITEM_END_ROW - ITEM_START_ROW + 1  # 2 ítems en el template base
+# ── Helpers de estilo ──────────────────────────────────────────
 
-# Namespaces no estándar del template (generado por conversión xls→xlsx)
-_NS_REPLACEMENTS = [
-    (b"http://purl.oclc.org/ooxml/spreadsheetml/main",
-     b"http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-    (b"http://purl.oclc.org/ooxml/officeDocument/relationships",
-     b"http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-]
+def _fill(hex_color):
+    return PatternFill("solid", fgColor=hex_color)
+
+def _font(bold=False, size=10, color=TEXT, name="Calibri"):
+    return Font(bold=bold, size=size, color=color, name=name)
+
+def _border(style="thin", color="BFBFBF"):
+    s = Side(style=style, color=color)
+    return Border(left=s, right=s, top=s, bottom=s)
+
+def _border_bottom(color=ORANGE, style="medium"):
+    return Border(bottom=Side(style=style, color=color))
+
+def _align(h="left", v="center", wrap=False):
+    return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
+
+def _money(ws, row, col, value):
+    c = ws.cell(row=row, column=col, value=value)
+    c.number_format = '#,##0.00'
+    return c
+
+def _merge_row(ws, row, col_start, col_end):
+    ws.merge_cells(
+        start_row=row, start_column=col_start,
+        end_row=row, end_column=col_end
+    )
+    return ws.cell(row=row, column=col_start)
 
 
-def _fix_namespace(template_bytes: bytes) -> bytes:
-    """Corrige namespaces no estándar del template para que openpyxl pueda leerlo."""
-    buf = BytesIO()
-    with zipfile.ZipFile(BytesIO(template_bytes), 'r') as zin, \
-         zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zout:
-        for name in zin.namelist():
-            data = zin.read(name)
-            if name.endswith('.xml') or name.endswith('.rels'):
-                for old, new in _NS_REPLACEMENTS:
-                    data = data.replace(old, new)
-            zout.writestr(name, data)
-    buf.seek(0)
-    return buf.read()
+def _section_header(ws, row, text):
+    """Fila de sección: fondo navy, texto blanco, toda la fila."""
+    _merge_row(ws, row, FIRST_DATA_COL, LAST_COL)
+    c = ws.cell(row=row, column=FIRST_DATA_COL, value=text)
+    c.font      = _font(bold=True, size=9, color=WHITE)
+    c.fill      = _fill(NAVY)
+    c.alignment = _align("left")
+    ws.row_dimensions[row].height = 16
 
 
-def _create_fallback_workbook(data: dict):
-    """Genera un Excel básico funcional cuando el template está corrupto."""
+def _apply_item_row_style(ws, row, zebra=False):
+    """Aplica estilo de fila de datos (alternada)."""
+    bg = LIGHT if zebra else WHITE
+    thin = _border()
+    for col in range(FIRST_DATA_COL, LAST_COL + 1):
+        c = ws.cell(row=row, column=col)
+        c.fill      = _fill(bg)
+        c.border    = thin
+        c.font      = _font(size=9)
+        c.alignment = _align("center") if col in (2, 7, 8, 9) else _align("left", wrap=True)
+    ws.row_dimensions[row].height = 30
+
+
+# ── Generador principal ────────────────────────────────────────
+
+def generate_excel(data: dict) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Cotización"
+    ws.title = "Cotización OPEX"
 
-    ws['A1'] = "COTIZACIÓN OPEX SAS"
-    ws['A2'] = "Cliente:"
-    ws['B2'] = data.get("cliente", "")
-    ws['A3'] = "Nº Cotización:"
-    ws['B3'] = data.get("numero_cotizacion", "")
-    ws['A4'] = "Fecha:"
-    ws['B4'] = data.get("fecha", "").strftime("%d/%m/%Y") if hasattr(data.get("fecha"), "strftime") else str(data.get("fecha", ""))
-    ws['A5'] = "Contacto:"
-    ws['B5'] = data.get("contacto_nombre", "")
+    # Anchos de columna
+    for col, width in COL_WIDTHS.items():
+        ws.column_dimensions[get_column_letter(col)].width = width
 
-    ws.append([])
-    ws.append(["#", "Referencia", "Descripción", "SAP", "Marca", "Cantidad", "P. Unitario USD", "P. Total USD"])
-    for idx, item in enumerate(data.get("items", []), 1):
-        ws.append([
-            idx,
-            item.get("referencia_usa", ""),
-            item.get("descripcion", ""),
-            item.get("referencia_cod_proveedor", ""),
-            item.get("marca", "HOPPECKE"),
-            float(item.get("cantidad", 0)),
-            float(item.get("precio_unitario_usd", 0)),
-            float(item.get("precio_total_usd", 0)),
-        ])
+    # Configuración de impresión
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToPage   = True
+    ws.page_margins.left = ws.page_margins.right = 0.5
 
-    ws.append([])
-    ws.append(["", "", "", "", "", "", "Subtotal USD:", float(data.get("subtotal_usd", 0))])
-    ws.append(["", "", "", "", "", "", f"IVA {data.get('iva_pct', 19)}%:", float(data.get("subtotal_usd", 0)) * float(data.get("iva_pct", 19)) / 100])
-    ws.append(["", "", "", "", "", "", "Total USD:", float(data.get("total_usd", 0))])
-    ws.append([])
-    ws.append(["Condiciones de pago:", data.get("condiciones_pago", "")])
-    ws.append(["Condiciones de entrega:", data.get("condiciones_entrega", "")])
-    ws.append(["Garantía:", data.get("condiciones_garantia", "")])
-    ws.append(["Validez:", data.get("validez_oferta", "30 días")])
-    ws.append(["Observaciones:", data.get("observaciones", "")])
-    return wb
+    row = 1
 
+    # ── HEADER ────────────────────────────────────────────────────
+    # Barra navy superior
+    ws.row_dimensions[row].height = 6
+    for col in range(1, LAST_COL + 2):
+        ws.cell(row=row, column=col).fill = _fill(NAVY)
+    row += 1
 
-def fill_template(template_bytes: bytes, data: dict) -> bytes:
-    try:
-        wb = openpyxl.load_workbook(BytesIO(_fix_namespace(template_bytes)))
-        ws = wb.active or (wb.worksheets[0] if wb.worksheets else None)
-        if ws is None:
-            raise ValueError("No se pudo leer la hoja del template")
-    except Exception:
-        wb = _create_fallback_workbook(data)
-        ws = wb.active
+    # Fila con logos y título
+    ws.row_dimensions[row].height = 52
+    # [B] Área logo OPEX
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+    logo_cell = ws.cell(row=row, column=2, value="[ Logo OPEX ]")
+    logo_cell.font      = _font(bold=True, size=9, color=NAVY)
+    logo_cell.alignment = _align("center", "center")
+    logo_cell.fill      = _fill("F8FAFC")
 
-    def cell(row, col, value):
-        ws.cell(row=row, column=col, value=value)
+    # [D-F] Título central
+    ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=6)
+    title = ws.cell(row=row, column=4, value="COTIZACIÓN / OFERTA OPEX SAS")
+    title.font      = _font(bold=True, size=14, color=NAVY)
+    title.alignment = _align("center", "center")
+    title.fill      = _fill("F8FAFC")
 
-    # ── Header ──────────────────────────────────────────────────
-    cell(6,  7,  data.get("cliente", ""))              # G6  — nombre cliente
-    cell(11, 2,  data.get("numero_cotizacion", ""))    # B11 — nº cotización
-    fecha = data.get("fecha")
-    cell(11, 5,  fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha or ""))  # E11
-    cell(13, 9,  data.get("contacto_nombre", ""))      # I13 — contacto
+    # [H-I] Área logo cliente
+    ws.merge_cells(start_row=row, start_column=8, end_row=row, end_column=9)
+    client_logo = ws.cell(row=row, column=8, value="[ Logo Cliente ]")
+    client_logo.font      = _font(size=9, color="94A3B8")
+    client_logo.alignment = _align("center", "center")
+    client_logo.fill      = _fill("F8FAFC")
 
-    # ── Ítems ───────────────────────────────────────────────────
-    items = data.get("items", [])[:MAX_ITEMS]
+    # Borde inferior naranja del header
+    for col in range(FIRST_DATA_COL, LAST_COL + 1):
+        ws.cell(row=row, column=col).border = _border_bottom(ORANGE, "thick")
+    row += 1
+
+    # Línea separadora
+    ws.row_dimensions[row].height = 4
+    for col in range(1, LAST_COL + 2):
+        ws.cell(row=row, column=col).fill = _fill(ORANGE)
+    row += 1
+
+    # ── INFO COTIZACIÓN ───────────────────────────────────────────
+    ws.row_dimensions[row].height = 20
+    # Label + valor en pares
+    pairs = [
+        (2, "Nº Cotización:", 3, data.get("numero_cotizacion", "")),
+        (5, "Fecha:", 6, data.get("fecha", date.today()).strftime("%d/%m/%Y") if hasattr(data.get("fecha"), "strftime") else ""),
+        (8, "Páginas:", 9, "1"),
+    ]
+    for lcol, ltext, vcol, vval in pairs:
+        lc = ws.cell(row=row, column=lcol, value=ltext)
+        lc.font = _font(bold=True, size=9, color=NAVY)
+        lc.alignment = _align("right")
+        vc = ws.cell(row=row, column=vcol, value=vval)
+        vc.font = _font(size=9)
+        vc.alignment = _align("left")
+        vc.border = Border(bottom=Side(style="thin", color=GRAY))
+    row += 1
+
+    ws.row_dimensions[row].height = 20
+    pairs2 = [
+        (2, "Cliente:", 3, data.get("cliente", "")),
+        (6, "Contacto:", 7, data.get("contacto_nombre", "")),
+    ]
+    for lcol, ltext, vcol, vval in pairs2:
+        lc = ws.cell(row=row, column=lcol, value=ltext)
+        lc.font = _font(bold=True, size=9, color=NAVY)
+        lc.alignment = _align("right")
+        ws.merge_cells(start_row=row, start_column=vcol, end_row=row, end_column=vcol + 1)
+        vc = ws.cell(row=row, column=vcol, value=vval)
+        vc.font = _font(bold=True, size=10, color=NAVY)
+        vc.alignment = _align("left")
+        vc.border = Border(bottom=Side(style="medium", color=NAVY))
+    row += 1
+
+    ws.row_dimensions[row].height = 8  # espacio
+    row += 1
+
+    # ── TABLA DE ÍTEMS ────────────────────────────────────────────
+    # Header de tabla
+    ws.row_dimensions[row].height = 22
+    headers = [
+        (2, "#"),
+        (3, "REFERENCIA"),
+        (4, "DESCRIPCIÓN"),
+        (5, "COD. PROVEEDOR"),
+        (6, "MARCA"),
+        (7, "QTD"),
+        (8, "PRECIO UNIT. USD"),
+        (9, "PRECIO TOTAL USD"),
+    ]
+    for col, txt in headers:
+        c = ws.cell(row=row, column=col, value=txt)
+        c.font      = _font(bold=True, size=9, color=WHITE)
+        c.fill      = _fill(NAVY)
+        c.alignment = _align("center")
+        c.border    = Border(
+            left=Side(style="thin", color="1E3A6E"),
+            right=Side(style="thin", color="1E3A6E"),
+            bottom=Side(style="medium", color=ORANGE),
+        )
+    row += 1
+
+    # Ítems dinámicos
+    items = data.get("items", [])
     for idx, item in enumerate(items):
-        row = ITEM_START_ROW + idx
-        cell(row, 2,  idx + 1)                                      # B  — ITEM #
-        cell(row, 3,  item.get("referencia_usa", ""))               # C  — REFERENCIA
-        cell(row, 4,  item.get("descripcion", ""))                  # D  — DESCRIPCION
-        cell(row, 8,  item.get("referencia_cod_proveedor", ""))     # H  — SAP
-        cell(row, 11, item.get("marca", "HOPPECKE"))                # K  — MARCA
-        cell(row, 13, float(item.get("cantidad", 0)))               # M  — QTD
-        cell(row, 14, float(item.get("precio_unitario_usd", 0)))    # N  — PRECIO UNIT
-        cell(row, 15, float(item.get("precio_total_usd", 0)))       # O  — PRECIO TOTAL
+        _apply_item_row_style(ws, row, zebra=(idx % 2 == 1))
+        ws.cell(row=row, column=2, value=idx + 1).font = _font(bold=True, size=9, color=NAVY)
+        ws.cell(row=row, column=3, value=item.get("referencia_usa", ""))
+        ws.cell(row=row, column=4, value=item.get("descripcion", ""))
+        ws.cell(row=row, column=5, value=item.get("referencia_cod_proveedor", ""))
+        ws.cell(row=row, column=6, value=item.get("marca", "HOPPECKE"))
+        ws.cell(row=row, column=7, value=float(item.get("cantidad", 0)))
+        _money(ws, row, 8, float(item.get("precio_unitario_usd", 0)))
+        _money(ws, row, 9, float(item.get("precio_total_usd", 0)))
+        # Alineación numérica
+        for col in (7, 8, 9):
+            ws.cell(row=row, column=col).alignment = _align("right")
+        row += 1
 
-    # ── Totales ─────────────────────────────────────────────────
+    # Línea de cierre de tabla
+    for col in range(FIRST_DATA_COL, LAST_COL + 1):
+        c = ws.cell(row=row - 1, column=col)
+        c.border = Border(
+            left=c.border.left, right=c.border.right,
+            top=c.border.top,
+            bottom=Side(style="medium", color=NAVY),
+        )
+
+    ws.row_dimensions[row].height = 8
+    row += 1
+
+    # ── TOTALES ────────────────────────────────────────────────────
     subtotal = float(data.get("subtotal_usd", 0))
     iva_pct  = float(data.get("iva_pct", 19))
-    cell(22, 15, subtotal)                             # O22 — SUBTOTAL
-    cell(23, 15, subtotal * iva_pct / 100)             # O23 — IVA
-    cell(24, 15, float(data.get("total_usd", 0)))      # O24 — TOTAL
+    iva      = subtotal * iva_pct / 100
+    total    = float(data.get("total_usd", 0))
 
-    # ── Condiciones comerciales ──────────────────────────────────
-    cell(29, 2, data.get("observaciones", ""))         # B29
-    cell(41, 4, data.get("fecha_entrega", ""))         # D41
-    cell(43, 4, data.get("condiciones_entrega", ""))   # D43
-    cell(45, 4, data.get("condiciones_pago", ""))      # D45
-    cell(47, 4, data.get("condiciones_garantia", ""))  # D47
-    cell(49, 4, data.get("validez_oferta", "30 días")) # D49
+    for label, value, is_total in [
+        ("SUBTOTAL USD",  subtotal, False),
+        (f"IVA {int(iva_pct)}%", iva,      False),
+        ("TOTAL USD",     total,    True),
+    ]:
+        ws.row_dimensions[row].height = 18
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        lc = ws.cell(row=row, column=2, value=label)
+        lc.font      = _font(bold=True, size=9, color=WHITE if is_total else NAVY)
+        lc.fill      = _fill(NAVY if is_total else LIGHT)
+        lc.alignment = _align("right")
+        lc.border    = _border(color="CBD5E1")
 
+        ws.merge_cells(start_row=row, start_column=8, end_row=row, end_column=9)
+        vc = ws.cell(row=row, column=8, value=value)
+        vc.number_format = '#,##0.00'
+        vc.font      = _font(bold=True, size=11 if is_total else 9,
+                             color=WHITE if is_total else TEXT)
+        vc.fill      = _fill(NAVY if is_total else LIGHT)
+        vc.alignment = _align("right")
+        vc.border    = _border(color="CBD5E1")
+        row += 1
+
+    row += 1  # espacio
+
+    # ── OBSERVACIONES ─────────────────────────────────────────────
+    obs = data.get("observaciones", "").strip()
+    if obs:
+        _section_header(ws, row, "OBSERVACIONES")
+        row += 1
+        ws.row_dimensions[row].height = max(30, len(obs) // 3)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
+        oc = ws.cell(row=row, column=2, value=obs)
+        oc.font      = _font(size=9)
+        oc.alignment = _align("left", wrap=True)
+        oc.fill      = _fill("FFFBF0")
+        oc.border    = _border(color="FED7AA")
+        row += 2
+
+    # ── CONDICIONES COMERCIALES ────────────────────────────────────
+    _section_header(ws, row, "CONDICIONES COMERCIALES")
+    row += 1
+
+    conditions = [
+        ("Fecha de entrega",       data.get("fecha_entrega", "")),
+        ("Condiciones de entrega", data.get("condiciones_entrega", "")),
+        ("Condiciones de pago",    data.get("condiciones_pago", "")),
+        ("Condiciones de garantía",data.get("condiciones_garantia", "")),
+        ("Validez de la oferta",   data.get("validez_oferta", "30 días")),
+    ]
+    for label, value in conditions:
+        if not value:
+            continue
+        ws.row_dimensions[row].height = 16
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+        lc = ws.cell(row=row, column=2, value=label)
+        lc.font      = _font(bold=True, size=9, color=NAVY)
+        lc.fill      = _fill(LIGHT)
+        lc.alignment = _align("left")
+        lc.border    = Border(
+            left=Side(style="thin", color=GRAY),
+            bottom=Side(style="thin", color=GRAY),
+        )
+
+        ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=9)
+        vc = ws.cell(row=row, column=4, value=value)
+        vc.font      = _font(size=9)
+        vc.alignment = _align("left")
+        vc.border    = Border(
+            right=Side(style="thin", color=GRAY),
+            bottom=Side(style="thin", color=GRAY),
+        )
+        row += 1
+
+    row += 1
+
+    # ── FIRMA ──────────────────────────────────────────────────────
+    ws.row_dimensions[row].height = 28
+    asesor  = data.get("asesor", "OPEX SAS")
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
+    sc = ws.cell(row=row, column=2, value=asesor)
+    sc.font      = _font(bold=True, size=10, color=NAVY)
+    sc.alignment = _align("center")
+    sc.border    = Border(top=Side(style="medium", color=NAVY))
+
+    ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=9)
+    ec = ws.cell(row=row, column=6, value="OPEX SAS")
+    ec.font      = _font(bold=True, size=10, color=NAVY)
+    ec.alignment = _align("center")
+    ec.border    = Border(top=Side(style="medium", color=NAVY))
+    row += 1
+
+    # Barra naranja inferior
+    row += 1
+    ws.row_dimensions[row].height = 5
+    for col in range(1, LAST_COL + 2):
+        ws.cell(row=row, column=col).fill = _fill(ORANGE)
+
+    # ── GUARDAR ────────────────────────────────────────────────────
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# Mantener compatibilidad con el código existente que llama a fill_template
+def fill_template(_template_bytes: bytes, data: dict) -> bytes:
+    """Wrapper: genera el Excel desde código ignorando el template."""
+    return generate_excel(data)
