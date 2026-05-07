@@ -85,13 +85,72 @@ class QuotationService:
         ]
         return json.dumps(catalog, ensure_ascii=False)
 
+    def _build_context(self, data) -> str:
+        """Construye el contexto completo de la oportunidad para enriquecer el prompt de la IA."""
+        lines = []
+
+        opp_id = getattr(data, 'opportunity_id', None)
+        company_id = getattr(data, 'company_id', None)
+
+        # Nombre del cliente
+        if company_id:
+            from app.models.company import Company
+            company = self.db.query(Company).filter(Company.id == company_id).first()
+            if company:
+                lines.append(f"CLIENTE: {company.nombre}")
+                if company.ciudad:
+                    lines.append(f"CIUDAD: {company.ciudad}")
+                if company.industria:
+                    lines.append(f"INDUSTRIA: {company.industria}")
+
+        # Detalles de la oportunidad
+        if opp_id:
+            from app.models.opportunity import Opportunity
+            opp = self.db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+            if opp:
+                if opp.titulo:
+                    lines.append(f"NOMBRE PROPUESTA: {opp.titulo}")
+                if opp.descripcion:
+                    lines.append(f"DESCRIPCIÓN: {opp.descripcion}")
+
+                # Cotización anterior vinculada a esta oportunidad
+                if opp.quotation_id:
+                    prev_quote = self.db.query(Quotation).filter(
+                        Quotation.id == opp.quotation_id
+                    ).first()
+                    if prev_quote:
+                        prev_items = self.db.query(QuotationItem).filter(
+                            QuotationItem.quotation_id == prev_quote.id
+                        ).order_by(QuotationItem.item_number).all()
+
+                        lines.append(f"\nCOTIZACIÓN ANTERIOR ({prev_quote.numero_cotizacion} · V{prev_quote.version}):")
+                        for it in prev_items:
+                            lines.append(
+                                f"  - {it.cantidad}x {it.descripcion}"
+                                + (f" [{it.referencia_usa}]" if it.referencia_usa else "")
+                                + f" @ ${float(it.precio_unitario_usd):,.2f} USD"
+                            )
+                        if prev_quote.condiciones_pago:
+                            lines.append(f"  Pago: {prev_quote.condiciones_pago}")
+                        if prev_quote.condiciones_garantia:
+                            lines.append(f"  Garantía: {prev_quote.condiciones_garantia}")
+                        lines.append(f"  Total anterior: ${float(prev_quote.total_usd or 0):,.2f} USD")
+
+        if not lines:
+            return data.prompt
+
+        context = "\n".join(lines)
+        return f"{context}\n\nSOLICITUD:\n{data.prompt}"
+
     async def generate(self, data) -> Quotation:
-        # 1. Call DeepSeek with prices adjusted by landed/margen from the opportunity
+        # 1. Construir prompt enriquecido con contexto del cliente y cotización anterior
         landed = float(getattr(data, 'landed_pct', 0) or 0)
         margen = float(getattr(data, 'margen_pct', 0) or 0)
         bl_id  = getattr(data, "business_line_id", 1) or 1
         catalog_json = self._catalog_json(business_line_id=bl_id, landed_pct=landed, margen_pct=margen)
-        ai_result = await generate_quotation_items(data.prompt, catalog_json)
+
+        enriched_prompt = self._build_context(data)
+        ai_result = await generate_quotation_items(enriched_prompt, catalog_json)
         ai_reasoning = ai_result.pop("_reasoning", None)
 
         ai_items = ai_result.get("items", [])
@@ -141,7 +200,7 @@ class QuotationService:
             validez_oferta=data.validez_oferta or ai_result.get("validez_oferta", "30 días"),
             observaciones=ai_result.get("observaciones"),
             estado="borrador",
-            ai_prompt=data.prompt,
+            ai_prompt=enriched_prompt,
             ai_reasoning=ai_reasoning,
         )
         self.db.add(quote)
