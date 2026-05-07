@@ -386,21 +386,10 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           </div>
         </div>
         {quote && (
-          <>
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Total</p>
-              <p className="font-semibold text-emerald-700">${Number(quote.total_usd || 0).toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Estado</p>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
-                quote.estado === 'aprobada' ? 'bg-green-100 text-green-700'
-                : quote.estado === 'enviada' ? 'bg-blue-100 text-blue-700'
-                : quote.estado === 'rechazada' ? 'bg-red-100 text-red-700'
-                : 'bg-gray-100 text-gray-600'
-              }`}>{quote.estado}</span>
-            </div>
-          </>
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Total</p>
+            <p className="font-semibold text-emerald-700">${Number(quote.total_usd || 0).toLocaleString()}</p>
+          </div>
         )}
 
         {/* Action buttons */}
