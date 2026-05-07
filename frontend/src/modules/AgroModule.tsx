@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, Leaf, Building2, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Layers, Building2, TrendingUp } from 'lucide-react'
 import ModuleSidebar from '../components/ModuleSidebar'
 import AgroDashboard from '../pages/agro/AgroDashboard'
 import Leads from '../pages/Leads'
@@ -12,7 +12,7 @@ const CONFIG = {
   iconBg: 'bg-emerald-700',
   nav: [
     { to: '',         label: 'Dashboard', icon: LayoutDashboard },
-    { to: 'leads',    label: 'Leads',     icon: Leaf },
+    { to: 'leads',    label: 'Leads',     icon: Layers },
     { to: 'empresas', label: 'Empresas',  icon: Building2 },
     { to: 'pipeline', label: 'Pipeline',  icon: TrendingUp },
   ],

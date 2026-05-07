@@ -475,6 +475,7 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['opportunities'] })
       qc.invalidateQueries({ queryKey: ['quotations'] })
+      qc.invalidateQueries({ queryKey: ['kpis'] })
       onSuccess?.()
     },
   })
@@ -585,6 +586,7 @@ function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['opportunities'] })
       qc.invalidateQueries({ queryKey: ['quotations'] })
+      qc.invalidateQueries({ queryKey: ['kpis'] })
       onSuccess?.()
     },
   })
@@ -1117,12 +1119,19 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
       }
       return editId ? updateOpportunity(editId, payload) : createOpportunity(payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['opportunities'] }); setModal(false) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['opportunities'] })
+      qc.invalidateQueries({ queryKey: ['kpis'] })
+      setModal(false)
+    },
   })
 
   const remove = useMutation({
     mutationFn: deleteOpportunity,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['opportunities'] })
+      qc.invalidateQueries({ queryKey: ['kpis'] })
+    },
   })
 
   const openCreate = () => {

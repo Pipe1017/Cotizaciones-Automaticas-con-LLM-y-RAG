@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, TrendingUp, Package,
-  FileText, Leaf, LogOut,
+  FileText, Layers, LogOut,
 } from 'lucide-react'
 import clsx from 'clsx'
 import opexLogo from '../logo/Opex.png'
@@ -13,7 +13,7 @@ const NAV = [
   { to: '/quotations', label: 'Cotizaciones',  icon: FileText },
   { to: '/companies',  label: 'Empresas',      icon: Building2 },
   { to: '/products',   label: 'Catálogo',      icon: Package },
-  { to: '/leads',      label: 'Fertilizantes', icon: Leaf },
+  { to: '/leads',      label: 'Fertilizantes', icon: Layers },
 ]
 
 export default function Sidebar() {

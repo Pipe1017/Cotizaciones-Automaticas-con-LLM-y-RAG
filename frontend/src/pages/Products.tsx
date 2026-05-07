@@ -5,7 +5,7 @@ import {
   deleteProveedor, uploadDatasheet, downloadFile, duplicateProduct,
 } from '../lib/api'
 import { useState, useRef } from 'react'
-import { Pencil, Check, X, Plus, Trash2, Paperclip, Download, Building2, Copy } from 'lucide-react'
+import { Pencil, Check, X, Plus, Trash2, Link2, Download, Building2, Copy } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 const timeAgo = (iso: string) => {
@@ -366,7 +366,7 @@ function DatasheetCell({ product }: { product: any }) {
             : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
         }`}
         title={hasDoc ? 'Reemplazar datasheet' : 'Sin datasheet — clic para subir'}>
-        <Paperclip size={13} />
+        <Link2 size={13} />
       </button>
     </div>
   )

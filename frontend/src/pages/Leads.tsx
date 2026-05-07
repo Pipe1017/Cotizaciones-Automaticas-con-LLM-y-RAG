@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLeads, createLead, updateLead, advanceLead, getLeadHistory } from '../lib/api'
+import { getLeads, createLead, updateLead, advanceLead, getLeadClock } from '../lib/api'
 import { useState } from 'react'
-import { Plus, Pencil, ArrowRight, History } from 'lucide-react'
+import { Plus, Pencil, ChevronRight, Clock } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
@@ -22,10 +22,10 @@ const EMPTY_LEAD = {
   proxima_accion: '', notas: '', linkedin_url: '', valor_estimado: '',
 }
 
-function HistoryModal({ leadId, onClose }: { leadId: number; onClose: () => void }) {
+function ClockModal({ leadId, onClose }: { leadId: number; onClose: () => void }) {
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['lead-history', leadId],
-    queryFn: () => getLeadHistory(leadId),
+    queryFn: () => getLeadClock(leadId),
   })
   return (
     <Modal open title="Historial de Actividad" onClose={onClose}>
@@ -41,7 +41,7 @@ function HistoryModal({ leadId, onClose }: { leadId: number; onClose: () => void
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Badge variant={ETAPA_VARIANT[h.etapa_anterior] || 'gray'}>{h.etapa_anterior}</Badge>
-                <ArrowRight size={12} className="text-gray-400" />
+                <ChevronRight size={12} className="text-gray-400" />
                 <Badge variant={ETAPA_VARIANT[h.etapa_nueva] || 'green'}>{h.etapa_nueva}</Badge>
               </div>
               {h.accion_realizada && <p className="text-sm text-gray-700 mt-1">{h.accion_realizada}</p>}
@@ -60,7 +60,7 @@ export default function Leads() {
   const [form, setForm] = useState<any>({ ...EMPTY_LEAD })
   const [editId, setEditId] = useState<number | null>(null)
   const [advanceData, setAdvanceData] = useState({ etapa_nueva: '', accion_realizada: '', resultado: '', responsable: '' })
-  const [historyId, setHistoryId] = useState<number | null>(null)
+  const [historyId, setClockId] = useState<number | null>(null)
   const qc = useQueryClient()
 
   const params = { etapa: filter.etapa || undefined, prioridad: filter.prioridad || undefined, search: filter.search || undefined }
@@ -155,11 +155,11 @@ export default function Leads() {
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
                       <button onClick={() => openAdvance(l)} title="Avanzar etapa"
-                        className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"><ArrowRight size={14} /></button>
+                        className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"><ChevronRight size={14} /></button>
                       <button onClick={() => openEdit(l)} title="Editar"
                         className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => { setHistoryId(l.id); setModal('history') }} title="Historial"
-                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"><History size={14} /></button>
+                      <button onClick={() => { setClockId(l.id); setModal('history') }} title="Historial"
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"><Clock size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -247,7 +247,7 @@ export default function Leads() {
         <div className="flex gap-3 mt-5">
           <button onClick={() => advance.mutate()} disabled={!advanceData.etapa_nueva || advance.isPending}
             className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
-            <ArrowRight size={15} /> {advance.isPending ? 'Guardando...' : 'Avanzar'}
+            <ChevronRight size={15} /> {advance.isPending ? 'Guardando...' : 'Avanzar'}
           </button>
           <button onClick={() => setModal(null)} className="text-sm text-gray-500">Cancelar</button>
         </div>
@@ -255,7 +255,7 @@ export default function Leads() {
 
       {/* Modal Historial */}
       {modal === 'history' && historyId && (
-        <HistoryModal leadId={historyId} onClose={() => setModal(null)} />
+        <ClockModal leadId={historyId} onClose={() => setModal(null)} />
       )}
     </div>
   )

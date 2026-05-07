@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Zap, Leaf, Droplets, LayoutGrid, LogOut, ChevronRight } from 'lucide-react'
+import { Activity, Layers, FlaskConical, Briefcase, LogOut, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../store/auth'
 import opexLogo from '../logo/Opex.png'
@@ -9,7 +9,7 @@ const MODULES = [
     id: 'energia',
     nombre: 'Energía & Backup',
     descripcion: 'Baterías industriales HOPPECKE, cotizaciones con IA y pipeline de ventas',
-    Icon: Zap,
+    Icon: Activity,
     gradient: 'from-brand-900 to-brand-700',
     border: 'border-brand-200 hover:border-brand-400',
     iconBg: 'bg-brand-900',
@@ -21,7 +21,7 @@ const MODULES = [
     id: 'agro',
     nombre: 'Agro-Proyectos',
     descripcion: 'Fertilizantes, leads agrícolas y desarrollo de mercado',
-    Icon: Leaf,
+    Icon: Layers,
     gradient: 'from-emerald-800 to-emerald-600',
     border: 'border-emerald-200 hover:border-emerald-400',
     iconBg: 'bg-emerald-700',
@@ -33,7 +33,7 @@ const MODULES = [
     id: 'h2',
     nombre: 'H₂ & Renovables',
     descripcion: 'Hidrógeno verde, celdas de combustible y energías renovables',
-    Icon: Droplets,
+    Icon: FlaskConical,
     gradient: 'from-cyan-800 to-cyan-600',
     border: 'border-cyan-200 hover:border-cyan-300',
     iconBg: 'bg-cyan-700',
@@ -45,7 +45,7 @@ const MODULES = [
     id: 'varios',
     nombre: 'Varios',
     descripcion: 'Proyectos especiales, logística, licitaciones y otros negocios',
-    Icon: LayoutGrid,
+    Icon: Briefcase,
     gradient: 'from-slate-700 to-slate-500',
     border: 'border-slate-200 hover:border-slate-300',
     iconBg: 'bg-slate-600',
