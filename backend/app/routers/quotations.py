@@ -836,13 +836,14 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
         ))
 
-    # Relink the opportunity to the new version
+    # Relink the opportunity to the new version and clear any manual PDF
     from app.models.opportunity import Opportunity
     opp = db.query(Opportunity).filter(Opportunity.quotation_id == quote_id).first()
     if opp:
         opp.quotation_id = new_quote.id
         opp.numero_oportunidad = new_numero
         opp.valor_usd = total
+        opp.file_manual_pdf = None  # nueva versión parte sin ajuste manual
 
     db.commit()
 

@@ -194,7 +194,10 @@ function ManualPdfAdjust({ opp }: { opp: any }) {
 
   const upload = useMutation({
     mutationFn: (file: File) => uploadOpportunityPdf(opp.id, file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['opportunities'] })
+      setOpen(false)
+    },
   })
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,33 +205,41 @@ function ManualPdfAdjust({ opp }: { opp: any }) {
     if (file) upload.mutate(file)
   }
 
+  // Ya tiene PDF manual — mostrar estado activo
+  if (opp.file_manual_pdf && !open) {
+    return (
+      <div className="flex items-center gap-2 pt-1 border-t border-dashed border-amber-200">
+        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+          Ajustado manualmente
+        </span>
+        <a href={`/api/opportunities/${opp.id}/download/pdf`}
+          className="text-xs text-amber-700 underline hover:text-amber-900">Ver PDF</a>
+        <button onClick={() => setOpen(true)}
+          className="text-xs text-gray-400 hover:text-gray-600 ml-1">cambiar</button>
+      </div>
+    )
+  }
+
+  // Sin PDF manual — enlace discreto
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-        <Upload size={11} /> Reemplazar PDF manualmente
+        className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-500 pt-1 transition-colors">
+        <Upload size={10} /> Cargar PDF ajustado manualmente
       </button>
     )
   }
 
+  // Formulario de upload
   return (
-    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-      {opp.file_manual_pdf ? (
-        <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <Upload size={10} /> Ajustado manualmente
-        </span>
-      ) : null}
-      <button onClick={() => pdfRef.current?.click()}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition-colors">
-        <Upload size={12} /> {opp.file_manual_pdf ? 'Reemplazar PDF' : 'Cargar PDF ajustado'}
+    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+      <span className="text-xs text-amber-700 font-medium">Reemplaza el PDF de esta versión:</span>
+      <button onClick={() => pdfRef.current?.click()} disabled={upload.isPending}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors disabled:opacity-50">
+        <Upload size={12} /> Seleccionar PDF
       </button>
-      {opp.file_manual_pdf && (
-        <a href={`/api/opportunities/${opp.id}/download/pdf`}
-          className="text-xs text-gray-500 underline hover:text-gray-700">Ver PDF manual</a>
-      )}
-      {upload.isPending && <span className="text-xs text-gray-400 animate-pulse">Subiendo...</span>}
-      {upload.isSuccess && <span className="text-xs text-emerald-600">Guardado</span>}
-      <button onClick={() => setOpen(false)} className="ml-auto text-gray-300 hover:text-gray-500"><X size={13} /></button>
+      {upload.isPending && <span className="text-xs text-amber-600 animate-pulse">Subiendo...</span>}
+      <button onClick={() => setOpen(false)} className="ml-auto text-amber-300 hover:text-amber-500"><X size={13} /></button>
       <input ref={pdfRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
     </div>
   )

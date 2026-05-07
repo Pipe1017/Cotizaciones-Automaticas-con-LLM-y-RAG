@@ -185,6 +185,7 @@ class QuotationService:
                 existing_opp.numero_oportunidad = numero
                 existing_opp.etapa = "Cotizacion"
                 existing_opp.valor_usd = total
+                existing_opp.file_manual_pdf = None  # nueva versión IA parte sin ajuste manual
         else:
             titulo = f"Cot. {numero} — {cliente_nombre}"
             new_opp = Opportunity(
