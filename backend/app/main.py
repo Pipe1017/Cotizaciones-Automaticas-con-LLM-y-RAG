@@ -1,10 +1,13 @@
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import settings
 from app.core.deps import viewer_or_editor
 from app.routers import (
     auth,
+    backup,
     business_lines,
     companies,
     contacts,
@@ -17,10 +20,36 @@ from app.routers import (
     quotations,
 )
 
+scheduler = AsyncIOScheduler()
+
+
+async def _scheduled_backup():
+    """Corre el backup automático si está habilitado y es la hora configurada."""
+    from app.database import SessionLocal
+    from app.routers.backup import BackupConfig, _run_backup
+    db = SessionLocal()
+    try:
+        cfg = db.query(BackupConfig).first()
+        if cfg and cfg.enabled and cfg.rclone_remote and cfg.remote_path:
+            await _run_backup(cfg.id, str(settings.database_url))
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Cron: revisa cada hora si toca hacer backup
+    scheduler.add_job(_scheduled_backup, "cron", minute=0)
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
 app = FastAPI(
     title="OPEX CRM",
     description="CRM inteligente con motor de cotización IA para OPEX SAS Colombia",
     version="1.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -35,7 +64,6 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 # ── Todos los demás requieren token válido ─────────────────────
-# viewer → solo GET  |  editor → todo
 _p = {"dependencies": [Depends(viewer_or_editor)]}
 
 app.include_router(companies.router,      prefix="/api/companies",      tags=["Empresas"],           **_p)
@@ -47,7 +75,8 @@ app.include_router(leads.router,          prefix="/api/leads",           tags=["
 app.include_router(exchange_rates.router, prefix="/api/exchange-rates",  tags=["Tipos de Cambio"],    **_p)
 app.include_router(dashboard.router,      prefix="/api/dashboard",       tags=["Dashboard"],          **_p)
 app.include_router(business_lines.router, prefix="/api/business-lines",  tags=["Líneas de Negocio"],  **_p)
-app.include_router(proveedores.router,    prefix="/api/proveedores",      tags=["Proveedores"],         **_p)
+app.include_router(proveedores.router,    prefix="/api/proveedores",     tags=["Proveedores"],        **_p)
+app.include_router(backup.router,         prefix="/api/backup",          tags=["Backup"],             **_p)
 
 
 @app.get("/", tags=["Health"])

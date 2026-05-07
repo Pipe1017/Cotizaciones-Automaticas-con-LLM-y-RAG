@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
-import { Users } from 'lucide-react'
+import { Users, CloudUpload } from 'lucide-react'
 import ModuleSidebar from '../components/ModuleSidebar'
 import UsersPage from '../pages/Users'
+import BackupPage from '../pages/Backup'
 
 const CONFIG = {
   id: 'admin',
@@ -9,6 +10,7 @@ const CONFIG = {
   iconBg: 'bg-slate-800',
   nav: [
     { to: 'usuarios', label: 'Usuarios', icon: Users },
+    { to: 'backup',   label: 'Backup',   icon: CloudUpload },
   ],
 }
 
@@ -20,6 +22,7 @@ export default function AdminShell() {
         <Routes>
           <Route index element={<UsersPage />} />
           <Route path="usuarios" element={<UsersPage />} />
+          <Route path="backup"   element={<BackupPage />} />
         </Routes>
       </main>
     </div>
