@@ -35,6 +35,8 @@ class Quotation(Base):
     version = Column(Integer, nullable=False, default=1)
     parent_quotation_id = Column(Integer, ForeignKey("quotations.id", ondelete="SET NULL"), nullable=True)
     created_by = Column(String(100))
+    ai_prompt    = Column(Text, nullable=True)   # prompt enviado a la IA (solo versiones IA)
+    ai_reasoning = Column(Text, nullable=True)   # reasoning devuelto por el modelo (si aplica)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
 

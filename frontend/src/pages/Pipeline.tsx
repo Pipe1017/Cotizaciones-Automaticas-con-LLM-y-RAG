@@ -186,6 +186,38 @@ function QuoteEditForm({
   )
 }
 
+// ── Trazabilidad IA ────────────────────────────────────────────
+function AITrace({ quote }: { quote: any }) {
+  const [open, setOpen] = useState(false)
+  if (!quote?.ai_prompt) return null
+
+  return (
+    <div className="pt-1 border-t border-gray-100">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-[11px] text-brand-400 hover:text-brand-600 transition-colors">
+        <Sparkles size={11} />
+        <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        Generado con IA — ver trazabilidad
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-2 text-xs">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Prompt enviado</p>
+            <p className="text-slate-700 whitespace-pre-wrap">{quote.ai_prompt}</p>
+          </div>
+          {quote.ai_reasoning && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wide mb-1">Razonamiento del modelo</p>
+              <p className="text-purple-800 whitespace-pre-wrap text-[11px] leading-relaxed">{quote.ai_reasoning}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Historial de versiones ─────────────────────────────────────
 function VersionHistory({ quotationId }: { quotationId: number }) {
   const [open, setOpen] = useState(false)
@@ -422,6 +454,7 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           <ManualPdfAdjust opp={opp} />
         </div>
       )}
+      {quote && <AITrace quote={quote} />}
       <VersionHistory quotationId={quotationId} />
     </div>
   )

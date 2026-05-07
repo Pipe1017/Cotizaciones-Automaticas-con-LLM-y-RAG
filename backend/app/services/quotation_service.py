@@ -92,6 +92,7 @@ class QuotationService:
         bl_id  = getattr(data, "business_line_id", 1) or 1
         catalog_json = self._catalog_json(business_line_id=bl_id, landed_pct=landed, margen_pct=margen)
         ai_result = await generate_quotation_items(data.prompt, catalog_json)
+        ai_reasoning = ai_result.pop("_reasoning", None)
 
         ai_items = ai_result.get("items", [])
         if not ai_items:
@@ -140,6 +141,8 @@ class QuotationService:
             validez_oferta=data.validez_oferta or ai_result.get("validez_oferta", "30 días"),
             observaciones=ai_result.get("observaciones"),
             estado="borrador",
+            ai_prompt=data.prompt,
+            ai_reasoning=ai_reasoning,
         )
         self.db.add(quote)
         self.db.flush()

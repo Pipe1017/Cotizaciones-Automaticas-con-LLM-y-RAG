@@ -128,6 +128,8 @@ class QuotationOut(BaseModel):
     file_path_carta: Optional[str]
     file_path_cotizacion: Optional[str]
     file_path_pdf: Optional[str]
+    ai_prompt: Optional[str] = None
+    ai_reasoning: Optional[str] = None
     created_at: datetime
     opp_etapa: Optional[str] = None   # etapa de la oportunidad asociada
 
