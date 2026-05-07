@@ -448,10 +448,9 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
 
     minio_svc = MinioService()
 
-    # Excel
+    # Excel — generado desde código, sin template
     try:
-        template_bytes = minio_svc.get_template()
-        excel_bytes = fill_template(template_bytes, doc_data)
+        excel_bytes = fill_template(None, doc_data)
         quote.file_path_minio = minio_svc.upload(
             settings.minio_bucket_quotations, f"{year_month}/{numero}.xlsx",
             excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -640,10 +639,9 @@ def _build_docs_and_files(quote: "Quotation", items_for_docs: list, doc_data: di
     numero = quote.numero_cotizacion
     year_month = date.today().strftime("%Y/%m")
 
-    # Excel
+    # Excel — generado desde código, sin template
     try:
-        template_bytes = minio_svc.get_template()
-        excel_bytes = fill_template(template_bytes, {**doc_data, "items": items_for_docs})
+        excel_bytes = fill_template(None, {**doc_data, "items": items_for_docs})
         quote.file_path_minio = minio_svc.upload(
             settings.minio_bucket_quotations, f"{year_month}/{numero}.xlsx",
             excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

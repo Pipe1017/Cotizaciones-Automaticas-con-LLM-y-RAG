@@ -309,10 +309,9 @@ class QuotationService:
             "validez_oferta": data.validez_oferta or ai_result.get("validez_oferta", "30 días"),
         }
 
-        # 8. Excel
+        # 8. Excel — generado desde código, sin template
         try:
-            template_bytes = self.minio.get_template()
-            excel_bytes = fill_template(template_bytes, doc_data)
+            excel_bytes = fill_template(None, doc_data)
             quote.file_path_minio = self.minio.upload(
                 settings.minio_bucket_quotations,
                 f"{year_month}/{numero}.xlsx",
