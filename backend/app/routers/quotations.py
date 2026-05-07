@@ -216,6 +216,35 @@ async def preview_ia(data: GenerateQuotationIn, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/{quote_id}/versions")
+def get_versions(quote_id: int, db: Session = Depends(get_db)):
+    """Devuelve todas las versiones en la cadena de una cotización, ordenadas de más nueva a más vieja."""
+    from sqlalchemy import or_
+    quote = db.query(Quotation).filter(Quotation.id == quote_id).first()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    root_id = quote.parent_quotation_id or quote.id
+    versions = (
+        db.query(Quotation)
+        .filter(or_(Quotation.id == root_id, Quotation.parent_quotation_id == root_id))
+        .order_by(Quotation.version.desc())
+        .all()
+    )
+    return [
+        {
+            "id": q.id,
+            "numero_cotizacion": q.numero_cotizacion,
+            "version": q.version,
+            "fecha": q.fecha.isoformat() if q.fecha else None,
+            "total_usd": float(q.total_usd) if q.total_usd else None,
+            "estado": q.estado,
+            "file_path_pdf": q.file_path_pdf,
+            "file_path_minio": q.file_path_minio,
+        }
+        for q in versions
+    ]
+
+
 @router.get("/catalog-check")
 def catalog_check(db: Session = Depends(get_db)):
     """Verifica qué ve DeepSeek del catálogo de productos."""

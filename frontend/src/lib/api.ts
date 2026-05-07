@@ -105,6 +105,8 @@ export const editQuotation = (id: number, data: object) =>
   api.put(`/quotations/${id}`, data).then(r => r.data)
 export const newQuotationVersion = (id: number, data: object) =>
   api.post(`/quotations/${id}/new-version`, data).then(r => r.data)
+export const getQuotationVersions = (id: number) =>
+  api.get(`/quotations/${id}/versions`).then(r => r.data)
 
 // ── Leads ──────────────────────────────────────────────────────
 export const getLeads = (params?: object) =>

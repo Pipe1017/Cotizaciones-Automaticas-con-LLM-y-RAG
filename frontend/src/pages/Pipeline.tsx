@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
   getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
-  getQuotationItems, editQuotation, newQuotationVersion,
+  getQuotationItems, editQuotation, newQuotationVersion, getQuotationVersions,
   uploadOpportunityExcel, uploadOpportunityPdf, updateQuotationStatus,
 } from '../lib/api'
 import { useState, useRef } from 'react'
@@ -186,6 +186,64 @@ function QuoteEditForm({
   )
 }
 
+// ── Historial de versiones ─────────────────────────────────────
+function VersionHistory({ quotationId }: { quotationId: number }) {
+  const [open, setOpen] = useState(false)
+  const { data: versions = [], isLoading } = useQuery({
+    queryKey: ['quotation-versions', quotationId],
+    queryFn: () => getQuotationVersions(quotationId),
+    enabled: open,
+  })
+
+  const prev = (versions as any[]).slice(1) // skip current (index 0)
+
+  if (prev.length === 0 && !isLoading && open) return null
+
+  return (
+    <div className="pt-1 border-t border-gray-100">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        {open ? 'Ocultar' : 'Ver'} versiones anteriores
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-1.5">
+          {isLoading && <p className="text-xs text-gray-400">Cargando...</p>}
+          {prev.map((v: any) => (
+            <div key={v.id} className="flex items-center gap-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+              <span className="font-mono font-semibold text-gray-600">{v.numero_cotizacion}</span>
+              <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">V{v.version}</span>
+              <span className="text-gray-400">{v.fecha}</span>
+              {v.total_usd && <span className="text-gray-500">${Number(v.total_usd).toLocaleString()}</span>}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full capitalize ${
+                v.estado === 'aprobada' ? 'bg-green-100 text-green-700'
+                : v.estado === 'enviada' ? 'bg-blue-100 text-blue-700'
+                : v.estado === 'rechazada' ? 'bg-red-100 text-red-600'
+                : 'bg-gray-100 text-gray-500'
+              }`}>{v.estado}</span>
+              <div className="ml-auto flex gap-2">
+                {v.file_path_minio && (
+                  <a href={`/api/quotations/${v.id}/download`}
+                    className="text-gray-400 hover:text-emerald-600 transition-colors" title="Excel">
+                    <FileText size={13} />
+                  </a>
+                )}
+                {v.file_path_pdf && (
+                  <a href={`/api/quotations/${v.id}/download/pdf-combinado`}
+                    className="text-gray-400 hover:text-red-500 transition-colors" title="PDF">
+                    <Download size={13} />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Ajuste manual de PDF dentro de QuotationInfo ───────────────
 function ManualPdfAdjust({ opp }: { opp: any }) {
   const qc = useQueryClient()
@@ -364,6 +422,7 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           <ManualPdfAdjust opp={opp} />
         </div>
       )}
+      <VersionHistory quotationId={quotationId} />
     </div>
   )
 }
