@@ -31,6 +31,7 @@ INSTRUCCIONES:
 
 Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con este esquema exacto:
 {{
+  "razonamiento": "string (1-3 frases explicando por qué elegiste estos productos: qué identificaste del requerimiento, qué criterios usaste, qué supustos hiciste si faltaba info)",
   "items": [
     {{
       "referencia_usa": "string",
@@ -57,22 +58,23 @@ def _build_request_body(prompt: str, catalog_json: str) -> dict:
             {"role": "user",   "content": prompt},
         ],
         "temperature": 0.1,
-        "response_format": {"type": "json_object"},
     }
 
     if settings.deepseek_use_reasoning:
+        # deepseek-reasoner no soporta response_format — el JSON viene en content
         body["reasoning_effort"] = settings.deepseek_reasoning_effort
+    else:
+        body["response_format"] = {"type": "json_object"}
 
     return body
 
 
 def _extract_result(response_json: dict) -> tuple[dict, str | None]:
-    """Retorna (items_dict, reasoning_content | None)."""
+    """Retorna (items_dict, razonamiento | None)."""
     choice = response_json["choices"][0]["message"]
     content = choice.get("content", "")
-    reasoning = choice.get("reasoning_content") or choice.get("thinking")
-
     result = json.loads(content)
+    reasoning = result.pop("razonamiento", None)
     return result, reasoning
 
 
@@ -83,9 +85,6 @@ async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
     """
     url = f"{settings.deepseek_base_url.rstrip('/')}/v1/chat/completions"
     body = _build_request_body(prompt, catalog_json)
-
-    logger.info("DeepSeek request — model=%s reasoning=%s url=%s",
-                settings.deepseek_model, settings.deepseek_use_reasoning, url)
 
     async with httpx.AsyncClient(timeout=90.0) as client:
         response = await client.post(
