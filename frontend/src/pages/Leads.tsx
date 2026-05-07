@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLeads, createLead, updateLead, advanceLead, getLeadClock } from '../lib/api'
+import { getLeads, createLead, updateLead, advanceLead, getLeadHistory } from '../lib/api'
 import { useState } from 'react'
 import { Plus, Pencil, ChevronRight, Clock } from 'lucide-react'
 import Modal from '../components/Modal'
@@ -25,7 +25,7 @@ const EMPTY_LEAD = {
 function ClockModal({ leadId, onClose }: { leadId: number; onClose: () => void }) {
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['lead-history', leadId],
-    queryFn: () => getLeadClock(leadId),
+    queryFn: () => getLeadHistory(leadId),
   })
   return (
     <Modal open title="Historial de Actividad" onClose={onClose}>
