@@ -27,7 +27,7 @@ export default function AgroModule() {
           <Route index element={<AgroDashboard />} />
           <Route path="leads"    element={<Leads />} />
           <Route path="empresas" element={<Companies modulo="agro_proyectos" />} />
-          <Route path="pipeline" element={<Pipeline allowedBL={[4]} />} />
+          <Route path="pipeline" element={<Pipeline allowedBL={[4, 7]} />} />
         </Routes>
       </main>
     </div>

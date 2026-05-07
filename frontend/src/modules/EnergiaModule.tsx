@@ -24,8 +24,8 @@ export default function EnergiaModule() {
       <ModuleSidebar config={CONFIG} />
       <main className="flex-1 overflow-auto">
         <Routes>
-          <Route index element={<Dashboard allowedBL={[1, 2, 3]} />} />
-          <Route path="pipeline" element={<Pipeline allowedBL={[1, 2, 3]} />} />
+          <Route index element={<Dashboard allowedBL={[1, 2, 3, 7]} />} />
+          <Route path="pipeline" element={<Pipeline allowedBL={[1, 2, 3, 7]} />} />
           <Route path="empresas" element={<Companies modulo="energia_backup" />} />
           <Route path="catalogo" element={<Products allowedBL={[1, 2, 3]} />} />
         </Routes>
