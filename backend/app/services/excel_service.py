@@ -31,16 +31,89 @@ from io import BytesIO
 from datetime import date
 from decimal import Decimal
 import openpyxl
+import zipfile
 
 
 ITEM_START_ROW = 20
 ITEM_END_ROW   = 21
 MAX_ITEMS      = ITEM_END_ROW - ITEM_START_ROW + 1  # 2 ítems en el template base
 
+# Namespaces no estándar del template (generado por conversión xls→xlsx)
+_NS_REPLACEMENTS = [
+    (b"http://purl.oclc.org/ooxml/spreadsheetml/main",
+     b"http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
+    (b"http://purl.oclc.org/ooxml/officeDocument/relationships",
+     b"http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+]
+
+
+def _fix_namespace(template_bytes: bytes) -> bytes:
+    """Corrige namespaces no estándar del template para que openpyxl pueda leerlo."""
+    buf = BytesIO()
+    with zipfile.ZipFile(BytesIO(template_bytes), 'r') as zin, \
+         zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zout:
+        for name in zin.namelist():
+            data = zin.read(name)
+            if name.endswith('.xml') or name.endswith('.rels'):
+                for old, new in _NS_REPLACEMENTS:
+                    data = data.replace(old, new)
+            zout.writestr(name, data)
+    buf.seek(0)
+    return buf.read()
+
+
+def _create_fallback_workbook(data: dict):
+    """Genera un Excel básico funcional cuando el template está corrupto."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Cotización"
+
+    ws['A1'] = "COTIZACIÓN OPEX SAS"
+    ws['A2'] = "Cliente:"
+    ws['B2'] = data.get("cliente", "")
+    ws['A3'] = "Nº Cotización:"
+    ws['B3'] = data.get("numero_cotizacion", "")
+    ws['A4'] = "Fecha:"
+    ws['B4'] = data.get("fecha", "").strftime("%d/%m/%Y") if hasattr(data.get("fecha"), "strftime") else str(data.get("fecha", ""))
+    ws['A5'] = "Contacto:"
+    ws['B5'] = data.get("contacto_nombre", "")
+
+    ws.append([])
+    ws.append(["#", "Referencia", "Descripción", "SAP", "Marca", "Cantidad", "P. Unitario USD", "P. Total USD"])
+    for idx, item in enumerate(data.get("items", []), 1):
+        ws.append([
+            idx,
+            item.get("referencia_usa", ""),
+            item.get("descripcion", ""),
+            item.get("referencia_cod_proveedor", ""),
+            item.get("marca", "HOPPECKE"),
+            float(item.get("cantidad", 0)),
+            float(item.get("precio_unitario_usd", 0)),
+            float(item.get("precio_total_usd", 0)),
+        ])
+
+    ws.append([])
+    ws.append(["", "", "", "", "", "", "Subtotal USD:", float(data.get("subtotal_usd", 0))])
+    ws.append(["", "", "", "", "", "", f"IVA {data.get('iva_pct', 19)}%:", float(data.get("subtotal_usd", 0)) * float(data.get("iva_pct", 19)) / 100])
+    ws.append(["", "", "", "", "", "", "Total USD:", float(data.get("total_usd", 0))])
+    ws.append([])
+    ws.append(["Condiciones de pago:", data.get("condiciones_pago", "")])
+    ws.append(["Condiciones de entrega:", data.get("condiciones_entrega", "")])
+    ws.append(["Garantía:", data.get("condiciones_garantia", "")])
+    ws.append(["Validez:", data.get("validez_oferta", "30 días")])
+    ws.append(["Observaciones:", data.get("observaciones", "")])
+    return wb
+
 
 def fill_template(template_bytes: bytes, data: dict) -> bytes:
-    wb = openpyxl.load_workbook(BytesIO(template_bytes))
-    ws = wb.active
+    try:
+        wb = openpyxl.load_workbook(BytesIO(_fix_namespace(template_bytes)))
+        ws = wb.active or (wb.worksheets[0] if wb.worksheets else None)
+        if ws is None:
+            raise ValueError("No se pudo leer la hoja del template")
+    except Exception:
+        wb = _create_fallback_workbook(data)
+        ws = wb.active
 
     def cell(row, col, value):
         ws.cell(row=row, column=col, value=value)
