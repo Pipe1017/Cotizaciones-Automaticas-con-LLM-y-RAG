@@ -169,7 +169,7 @@ async def _run_backup(config_id: int, db_url: str):
     if cfg.include_files:
         log += "── Sync archivos MinIO ──\n"
         minio_host = getattr(settings, "minio_endpoint", "minio:9000")
-        minio_bucket = getattr(settings, "minio_bucket", "opex-docs")
+        minio_bucket = settings.minio_bucket_quotations
         minio_access = getattr(settings, "minio_access_key", "")
         minio_secret = getattr(settings, "minio_secret_key", "")
 
