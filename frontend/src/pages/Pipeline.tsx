@@ -897,7 +897,7 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
           <p className="font-medium text-gray-800 truncate text-sm">{opp.titulo}</p>
         </td>
         <td className="px-3 py-3 text-xs text-gray-500 max-w-[100px] truncate">{blName(opp.business_line_id)}</td>
-        <td className="px-3 py-3">
+        <td className="px-3 py-3 whitespace-nowrap">
           <Badge variant={ETAPA_VARIANT[opp.etapa] || 'gray'}>{opp.etapa || '—'}</Badge>
         </td>
         <td className="px-3 py-3 whitespace-nowrap">
@@ -1215,7 +1215,8 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
         <p className="text-gray-400">Cargando...</p>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-max w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 {['#', 'Fecha', 'Cliente', 'Propuesta', 'Línea', 'Etapa', 'Prob.', 'Valor USD', 'Cotización', 'Asesor', '', ''].map((h, i) => (
@@ -1243,6 +1244,7 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
