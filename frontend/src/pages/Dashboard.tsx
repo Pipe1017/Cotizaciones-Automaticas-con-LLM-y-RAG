@@ -150,15 +150,15 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
         <>
           {/* ── KPI Row ── */}
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <KPI label="Pipeline Total" value={fmt(totalPipeline)}
+            <KPI label="Pipeline Total USD" value={fmt(totalPipeline)}
               sub="Oportunidades activas" icon={DollarSign}
               color="bg-brand-900" accent={pct > 0 ? `${pct}% comprometido` : undefined} />
-            <KPI label="Comprometido" value={fmt(comprometido)}
+            <KPI label="Comprometido USD" value={fmt(comprometido)}
               sub="Go × Get ponderado" icon={Target} color="bg-emerald-600" />
-            <KPI label="Margen Esperado" value={fmt(margenEsperado)}
+            <KPI label="Margen Esperado USD" value={fmt(margenEsperado)}
               sub={margenPct > 0 ? `${margenPct}% del pipeline` : 'Configura % margen en oportunidades'}
               icon={TrendingDown} color="bg-teal-600" />
-            <KPI label="Margen Ganado" value={fmt(margenGanado)}
+            <KPI label="Margen Ganado USD" value={fmt(margenGanado)}
               sub="De oportunidades Ganadas" icon={TrendingUp} color="bg-amber-500" />
             <KPI label="Oportunidades" value={totalOpps}
               sub="En pipeline" icon={TrendingUp} color="bg-slate-600" />
@@ -250,7 +250,7 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
           {/* ── Detalle tabla ── */}
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-700">Detalle por Línea de Negocio</p>
+              <p className="text-sm font-semibold text-slate-700">Detalle por Línea de Negocio <span className="text-xs font-normal text-slate-400 ml-1">— valores en USD</span></p>
               <p className="text-xs text-slate-400">{pipelineRows.length} líneas</p>
             </div>
             <div className="overflow-x-auto">
@@ -259,9 +259,9 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
                   <tr className="bg-slate-50">
                     <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Línea de Negocio</th>
                     <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Opps</th>
-                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Pipeline</th>
-                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Comprometido</th>
-                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Margen Esp.</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Pipeline USD</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Comprometido USD</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Margen Esp. USD</th>
                     <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-36">Cobertura</th>
                   </tr>
                 </thead>
