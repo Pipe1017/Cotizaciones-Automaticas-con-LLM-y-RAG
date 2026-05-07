@@ -41,6 +41,12 @@ class PasswordChange(BaseModel):
     password_nuevo: str
 
 
+class UserPatch(BaseModel):
+    nombre: str | None = None
+    rol: str | None = None
+    activo: bool | None = None
+
+
 @router.post("/login", response_model=Token)
 def login(
     response: Response,
@@ -105,6 +111,26 @@ def delete_user(user_id: int, current_user: User = Depends(require_editor), db: 
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     user.activo = False
     db.commit()
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def patch_user(user_id: int, data: UserPatch, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
+    if data.activo is False and current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="No puedes desactivar tu propio usuario")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if data.nombre is not None:
+        user.nombre = data.nombre
+    if data.rol is not None:
+        if data.rol not in ("viewer", "editor"):
+            raise HTTPException(status_code=400, detail="Rol inválido")
+        user.rol = data.rol
+    if data.activo is not None:
+        user.activo = data.activo
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.post("/users/{user_id}/password", status_code=204)

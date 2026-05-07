@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Activity, Layers, FlaskConical, Briefcase, LogOut, ChevronRight } from 'lucide-react'
+import { Activity, Layers, FlaskConical, Briefcase, LogOut, ChevronRight, Settings } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../store/auth'
 import opexLogo from '../logo/Opex.png'
@@ -137,8 +137,20 @@ export default function ModuleSelector() {
         </div>
       </main>
 
+      {/* Admin link — solo editores */}
+      {user?.rol === 'editor' && (
+        <div className="flex justify-center pb-6">
+          <button
+            onClick={() => navigate('/admin/usuarios')}
+            className="flex items-center gap-2 text-white/30 hover:text-white/60 text-xs transition-colors"
+          >
+            <Settings size={13} /> Administración de usuarios
+          </button>
+        </div>
+      )}
+
       <footer className="py-4 text-center text-white/20 text-[10px]">
-        By Aura Gallego ft. Claude Code
+        OPEX SAS · CRM v1.2
       </footer>
     </div>
   )

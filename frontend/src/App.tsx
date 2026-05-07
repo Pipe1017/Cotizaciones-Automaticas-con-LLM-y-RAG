@@ -6,6 +6,7 @@ import ModuleSelector from './pages/ModuleSelector'
 import EnergiaModule from './modules/EnergiaModule'
 import AgroModule from './modules/AgroModule'
 import PlaceholderModule from './modules/PlaceholderModule'
+import AdminShell from './modules/AdminShell'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
             <Route index element={<ModuleSelector />} />
             <Route path="energia/*" element={<EnergiaModule />} />
             <Route path="agro/*"    element={<AgroModule />} />
+            <Route path="admin/*"   element={<AdminShell />} />
             <Route path="h2/*"      element={
               <PlaceholderModule
                 nombre="H₂ & Renovables"

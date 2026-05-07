@@ -2,21 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getDashboardKpis, getLatestRates, getBusinessLines } from '../lib/api'
 import {
-  TrendingUp, FileText, DollarSign, Target, Activity,
-  RefreshCw, Euro, Banknote, Calendar,
+  TrendingUp, FileText, DollarSign, Target,
+  RefreshCw, Euro, Banknote, Calendar, ChevronRight,
 } from 'lucide-react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
-} from 'recharts'
-
-// ── Palette for BL bars ──────────────────────────────────────────────────────
-const BL_COLORS = ['#4b60eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4']
-
-const ETAPA_ORDER = [
-  'En Proceso', 'Cotizando', 'Enviada', 'Ganada', 'Perdida', 'Cancelada por Cliente',
-]
-
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -24,52 +12,37 @@ const fmt = (n: number) =>
   : n >= 1_000   ? `$${(n / 1_000).toFixed(0)}K`
   : `$${n.toFixed(0)}`
 
+const BL_COLORS = ['#0f2560', '#4b60eb', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4']
+
+const ETAPA_COLORS: Record<string, string> = {
+  'En Proceso':           '#4b60eb',
+  'Enviada':              '#f59e0b',
+  'Ganada':               '#10b981',
+  'Perdida':              '#ef4444',
+  'Cancelada por Cliente':'#94a3b8',
+}
+
 // ── KPI Card ─────────────────────────────────────────────────────────────────
-function KPI({
-  label, value, sub, icon: Icon, color, accent,
-}: {
+function KPI({ label, value, sub, icon: Icon, accent, color }: {
   label: string; value: string | number; sub?: string
-  icon: any; color: string; accent?: string
+  icon: any; accent?: string; color: string
 }) {
   return (
-    <div className="card p-5 flex gap-4 items-start">
-      <div className={`p-2.5 rounded-xl ${color} shrink-0`}>
-        <Icon size={20} className="text-white" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide truncate">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 leading-tight mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-      </div>
-      {accent && (
-        <div className="ml-auto shrink-0">
-          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{accent}</span>
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div className={`p-2 rounded-lg ${color}`}>
+          <Icon size={18} className="text-white" />
         </div>
-      )}
+        {accent && (
+          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+            {accent}
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{label}</p>
+      <p className="text-3xl font-bold text-slate-900 mt-1 leading-none">{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1.5">{sub}</p>}
     </div>
-  )
-}
-
-// ── Business Line filter pill ─────────────────────────────────────────────────
-function BLPill({ id, nombre, active, onClick }: { id: number | null; nombre: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-        active
-          ? 'bg-brand-500 text-white border-brand-500 shadow-sm'
-          : 'bg-white text-gray-600 border-gray-200 hover:border-brand-400 hover:text-brand-600'
-      }`}
-    >
-      {nombre}
-    </button>
-  )
-}
-
-// ── Section header ────────────────────────────────────────────────────────────
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
   )
 }
 
@@ -82,10 +55,9 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
     queryFn: () => getBusinessLines(),
   })
 
-  // Solo mostrar las BLs permitidas por el módulo activo
-  const bls = allowedBL?.length
+  const bls = (allowedBL?.length
     ? (allBls as any[]).filter((bl: any) => allowedBL.includes(bl.id))
-    : allBls
+    : allBls) as any[]
 
   const { data: kpis, isLoading, refetch } = useQuery({
     queryKey: ['kpis', activeBL],
@@ -97,219 +69,229 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
     queryFn: () => getLatestRates(),
   })
 
-  // Derived numbers
   const totalPipeline = kpis?.total_pipeline_usd ?? 0
   const comprometido  = kpis?.comprometido_usd ?? 0
   const totalOpps     = kpis?.total_oportunidades ?? 0
   const totalQuotes   = kpis?.total_cotizaciones ?? 0
-  const totalLeads    = kpis?.total_leads ?? 0
   const pct = totalPipeline > 0 ? Math.round(comprometido / totalPipeline * 100) : 0
 
-  // Pipeline chart data — solo BLs del módulo con oportunidades
-  const pipelineData = (kpis?.pipeline ?? [])
-    .filter((r: any) => r.oportunidades > 0)
+  const pipelineRows = ((kpis?.pipeline ?? []) as any[])
     .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.bl_id))
 
-  // Opportunity funnel
-  const funnelData = ETAPA_ORDER
-    .map(e => ({ etapa: e, count: (kpis?.oportunidades_por_etapa ?? {})[e] ?? 0 }))
+  // Funnel — all stages present in data, plus zeroes for known stages
+  const etapaMap: Record<string, number> = kpis?.oportunidades_por_etapa ?? {}
+  const knownEtapas = ['En Proceso', 'Enviada', 'Ganada', 'Perdida', 'Cancelada por Cliente']
+  const allEtapas = Array.from(new Set([...knownEtapas, ...Object.keys(etapaMap)]))
+  const funnelData = allEtapas
+    .map(e => ({ etapa: e, count: etapaMap[e] ?? 0 }))
     .filter(d => d.count > 0)
+    .sort((a, b) => b.count - a.count)
 
+  const maxFunnel = Math.max(...funnelData.map(d => d.count), 1)
+
+  const activeName = activeBL ? bls.find((b: any) => b.id === activeBL)?.nombre : null
 
   return (
-    <div className="p-8 space-y-7 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px]">
 
-      {/* ── Header row ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            OPEX CRM · Resumen comercial {activeBL
-              ? `— ${(bls as any[]).find(b => b.id === activeBL)?.nombre}`
-              : '— Todas las líneas'}
-          </p>
+          <h2 className="text-xl font-bold text-slate-900">
+            Dashboard
+            {activeName && <span className="ml-2 text-base font-medium text-slate-400">· {activeName}</span>}
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">OPEX CRM · Resumen comercial</p>
         </div>
-        <button onClick={() => refetch()} className="btn-ghost">
-          <RefreshCw size={14} />
-          Actualizar
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 bg-white transition-colors"
+        >
+          <RefreshCw size={13} /> Actualizar
         </button>
       </div>
 
       {/* ── BL Filter ── */}
-      <div className="flex flex-wrap gap-2">
-        <BLPill id={null} nombre="Todas las líneas" active={activeBL === null} onClick={() => setActiveBL(null)} />
-        {(bls as any[]).map((bl: any) => (
-          <BLPill key={bl.id} id={bl.id} nombre={bl.nombre} active={activeBL === bl.id} onClick={() => setActiveBL(bl.id === activeBL ? null : bl.id)} />
-        ))}
-      </div>
+      {bls.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveBL(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              activeBL === null
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+            }`}
+          >
+            Todas
+          </button>
+          {bls.map((bl: any) => (
+            <button key={bl.id}
+              onClick={() => setActiveBL(bl.id === activeBL ? null : bl.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                activeBL === bl.id
+                  ? 'bg-brand-900 text-white border-brand-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-700'
+              }`}
+            >
+              {bl.nombre}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
-        <div className="h-48 flex items-center justify-center text-gray-400">Cargando KPIs...</div>
+        <div className="h-48 flex items-center justify-center text-slate-400 text-sm">Cargando…</div>
       ) : (
         <>
           {/* ── KPI Row ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPI
-              label="Pipeline Total"
-              value={fmt(totalPipeline)}
-              sub="USD acumulado"
-              icon={DollarSign}
-              color="bg-brand-500"
-              accent={`${pct}% comprometido`}
-            />
-            <KPI
-              label="Comprometido"
-              value={fmt(comprometido)}
-              sub="Alta probabilidad"
-              icon={Target}
-              color="bg-emerald-500"
-            />
-            <KPI
-              label="Oportunidades"
-              value={totalOpps}
-              sub="En pipeline activo"
-              icon={TrendingUp}
-              color="bg-amber-500"
-            />
-            <KPI
-              label="Cotizaciones"
-              value={totalQuotes}
-              sub={`${totalLeads} leads en desarrollo`}
-              icon={FileText}
-              color="bg-violet-500"
-            />
+            <KPI label="Pipeline Total" value={fmt(totalPipeline)}
+              sub="USD acumulado en oportunidades" icon={DollarSign}
+              color="bg-brand-900" accent={pct > 0 ? `${pct}% comprometido` : undefined} />
+            <KPI label="Comprometido" value={fmt(comprometido)}
+              sub="Valor ponderado Go × Get" icon={Target} color="bg-emerald-600" />
+            <KPI label="Oportunidades" value={totalOpps}
+              sub="En pipeline activo" icon={TrendingUp} color="bg-amber-500" />
+            <KPI label="Cotizaciones" value={totalQuotes}
+              sub="Versiones activas vinculadas" icon={FileText} color="bg-violet-600" />
           </div>
 
-          {/* ── Exchange rates ── */}
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { label: 'EUR / USD', val: rates?.EUR ? Number(rates.EUR).toFixed(4) : '—', Icon: Euro },
-              { label: 'COP / USD', val: rates?.COP ? Number(rates.COP).toFixed(6) : '—', Icon: Banknote },
-              { label: 'Actualización', val: rates?.fecha ?? '—', Icon: Calendar },
-            ].map(r => (
-              <div key={r.label} className="card px-5 py-3.5 flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">{r.label}</p>
-                  <p className="text-lg font-bold text-gray-900 mt-0.5">{r.val}</p>
-                </div>
-                <r.Icon size={20} className="text-gray-300" />
-              </div>
-            ))}
-          </div>
-
-          {/* ── Charts row ── */}
-          <div className="grid grid-cols-1 gap-5">
-
-            {/* Pipeline por línea */}
-            <div className="card p-5">
-              <SectionHeader title="Pipeline por Línea de Negocio (USD)" />
-              {pipelineData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={pipelineData} margin={{ left: -5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="linea" tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
-                      tickFormatter={v => v.split(' ').slice(0, 2).join(' ')} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
-                      tickFormatter={v => `$${(v / 1000).toFixed(0)}K`} />
-                    <Tooltip
-                      formatter={(v: any) => [`$${Number(v).toLocaleString()}`, 'Pipeline USD']}
-                      contentStyle={{ border: 'none', borderRadius: 8, boxShadow: '0 4px 12px rgb(0,0,0,0.1)', fontSize: 12 }}
-                    />
-                    <Bar dataKey="valor_total_usd" radius={[4, 4, 0, 0]} maxBarSize={56}>
-                      {pipelineData.map((_: any, i: number) => (
-                        <Cell key={i} fill={BL_COLORS[i % BL_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-52 flex items-center justify-center">
-                  <p className="text-gray-400 text-sm">Sin datos de pipeline para esta línea</p>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* ── Funnel + Pipeline table ── */}
+          {/* ── Tasas + Pipeline ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-            {/* Opportunity funnel */}
-            <div className="card p-5">
-              <SectionHeader title="Funnel Oportunidades por Etapa" />
-              {funnelData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={funnelData} layout="vertical" margin={{ left: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="etapa" tick={{ fontSize: 10 }} width={80} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ border: 'none', borderRadius: 8, boxShadow: '0 4px 12px rgb(0,0,0,0.1)', fontSize: 12 }}
-                    />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#8b5cf6" maxBarSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
+            {/* Tasas de cambio */}
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-3">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Tasas de cambio</p>
+              {[
+                { label: 'EUR / USD', val: rates?.EUR ? Number(rates.EUR).toFixed(4) : '—', Icon: Euro },
+                { label: 'COP / USD', val: rates?.COP ? Number(rates.COP).toFixed(6) : '—', Icon: Banknote },
+                { label: 'Actualización', val: rates?.fecha ?? '—', Icon: Calendar },
+              ].map(r => (
+                <div key={r.label} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <r.Icon size={14} className="text-slate-300" />
+                    <span className="text-xs text-slate-500">{r.label}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800">{r.val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Funnel etapas */}
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Oportunidades por Etapa</p>
+              {funnelData.length === 0 ? (
+                <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Sin datos</div>
               ) : (
-                <div className="h-48 flex items-center justify-center">
-                  <p className="text-gray-400 text-sm">Sin oportunidades</p>
+                <div className="space-y-3">
+                  {funnelData.map(d => (
+                    <div key={d.etapa}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-slate-600">{d.etapa}</span>
+                        <span className="text-xs font-bold text-slate-800">{d.count}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${(d.count / maxFunnel) * 100}%`,
+                            background: ETAPA_COLORS[d.etapa] ?? '#94a3b8',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Pipeline detail table (2 cols wide) */}
-            <div className="card overflow-hidden lg:col-span-2">
-              <div className="px-5 py-3.5 border-b border-gray-100">
-                <p className="text-sm font-semibold text-gray-700">Detalle Pipeline por Línea</p>
-              </div>
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {['Línea', 'Opps', 'Pipeline USD', 'Comprometido', 'Cobertura'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                    ))}
+            {/* Pipeline por BL mini-table */}
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Pipeline por Línea (USD)</p>
+              {pipelineRows.filter((r: any) => r.oportunidades > 0).length === 0 ? (
+                <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Sin datos</div>
+              ) : (
+                <div className="space-y-3">
+                  {pipelineRows.filter((r: any) => r.oportunidades > 0).map((r: any, i: number) => {
+                    const blPct = totalPipeline > 0 ? (r.valor_total_usd / totalPipeline) * 100 : 0
+                    return (
+                      <div key={r.bl_id}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-slate-600 truncate max-w-[160px]">{r.linea}</span>
+                          <span className="text-xs font-bold text-slate-800 ml-2 whitespace-nowrap">
+                            {fmt(r.valor_total_usd)}
+                            <span className="text-slate-400 font-normal ml-1">({r.oportunidades})</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${blPct}%`, background: BL_COLORS[i % BL_COLORS.length] }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Detalle tabla ── */}
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-700">Detalle por Línea de Negocio</p>
+              <p className="text-xs text-slate-400">{pipelineRows.length} líneas</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[540px]">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Línea de Negocio</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Opps</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Pipeline</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Comprometido</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-36">Cobertura</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {(kpis?.pipeline ?? [])
-                    .filter((r: any) => r.oportunidades > 0)
-                    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.bl_id))
-                    .map((row: any) => {
-                    const pct = row.valor_total_usd > 0
-                      ? (row.comprometido_usd / row.valor_total_usd * 100)
+                <tbody className="divide-y divide-slate-50">
+                  {pipelineRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-10 text-center text-slate-300 text-sm">
+                        Sin oportunidades registradas
+                      </td>
+                    </tr>
+                  ) : pipelineRows.map((row: any, i: number) => {
+                    const cob = row.valor_total_usd > 0
+                      ? Math.round(row.comprometido_usd / row.valor_total_usd * 100)
                       : 0
                     return (
-                      <tr key={row.linea} className="hover:bg-gray-50">
-                        <td className="px-4 py-2.5 font-medium text-gray-900 text-xs">{row.linea}</td>
-                        <td className="px-4 py-2.5 text-gray-500">{row.oportunidades}</td>
-                        <td className="px-4 py-2.5 font-semibold">
-                          {row.valor_total_usd > 0 ? fmt(row.valor_total_usd) : '—'}
+                      <tr key={row.bl_id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-3 font-medium text-slate-800 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: BL_COLORS[i % BL_COLORS.length] }} />
+                          {row.linea}
                         </td>
-                        <td className="px-4 py-2.5 text-emerald-700 font-medium">
-                          {row.comprometido_usd > 0 ? fmt(row.comprometido_usd) : '—'}
+                        <td className="px-5 py-3 text-right text-slate-500">{row.oportunidades}</td>
+                        <td className="px-5 py-3 text-right font-semibold text-slate-900">
+                          {row.valor_total_usd > 0 ? fmt(row.valor_total_usd) : <span className="text-slate-300">—</span>}
                         </td>
-                        <td className="px-4 py-2.5 w-32">
+                        <td className="px-5 py-3 text-right font-medium text-emerald-700">
+                          {row.comprometido_usd > 0 ? fmt(row.comprometido_usd) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3">
                           {row.valor_total_usd > 0 ? (
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                                <div
-                                  className="bg-emerald-500 h-1.5 rounded-full"
-                                  style={{ width: `${Math.min(pct, 100)}%` }}
-                                />
+                              <div className="flex-1 bg-slate-100 rounded-full h-1.5 min-w-[60px]">
+                                <div className="bg-emerald-500 h-1.5 rounded-full"
+                                  style={{ width: `${Math.min(cob, 100)}%` }} />
                               </div>
-                              <span className="text-xs text-gray-500 w-9 text-right">{pct.toFixed(0)}%</span>
+                              <span className="text-xs font-semibold text-slate-500 w-8 text-right">{cob}%</span>
                             </div>
-                          ) : '—'}
+                          ) : <span className="text-slate-300">—</span>}
                         </td>
                       </tr>
                     )
                   })}
-                  {(kpis?.pipeline ?? []).filter((r: any) => r.oportunidades > 0).length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
-                        Sin oportunidades para los filtros seleccionados
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>

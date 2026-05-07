@@ -30,12 +30,13 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
             BusinessLine.nombre,
             func.count(Opportunity.id).label("oportunidades"),
             func.coalesce(func.sum(Opportunity.valor_usd), 0).label("valor_total_usd"),
+            # comprometido ponderado: valor × prob_go × prob_get / 10000
             func.coalesce(
                 func.sum(
-                    case(
-                        (Opportunity.probabilidad == "Comprometida", Opportunity.valor_usd),
-                        else_=0,
-                    )
+                    Opportunity.valor_usd
+                    * Opportunity.prob_go
+                    * Opportunity.prob_get
+                    / 10000
                 ),
                 0,
             ).label("comprometido_usd"),
