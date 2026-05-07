@@ -24,10 +24,14 @@ INSTRUCCIONES:
   Indica en la descripción el número de celdas necesarias y la configuración.
 - Si el cliente menciona capacidad, selecciona el producto con capacidad igual o inmediatamente superior.
 - Si hay ambigüedad, elige la opción más conservadora e indícalo en observaciones.
-- Si el precio no está definido (precio_neto_usd = null o 0), usa precio_unitario_usd = 0 y anota en observaciones "Precio pendiente de confirmar con proveedor".
-- Los precios deben tomarse siempre del catálogo cuando estén disponibles.
-- CRÍTICO: el array "items" NUNCA debe estar vacío. Siempre selecciona el producto más adecuado aunque su precio sea 0 o null.
-- Si no hay un producto exacto, elige el más cercano por voltaje y capacidad.
+
+REGLAS CRÍTICAS — NO NEGOCIABLES:
+1. SOLO puedes seleccionar productos que existan en el catálogo. NO inventes modelos, referencias ni precios.
+2. El campo "referencia_usa" debe ser EXACTAMENTE igual al campo "referencia_usa" del catálogo.
+3. El campo "precio_unitario_usd" debe ser EXACTAMENTE el campo "precio_neto_usd" del catálogo.
+4. Si precio_neto_usd es null, usa 0 y anota "Precio pendiente de confirmar con proveedor" en observaciones.
+5. El array "items" NUNCA debe estar vacío. Si no hay coincidencia exacta, elige el más cercano por voltaje y capacidad.
+6. Si inventas un modelo que no existe en el catálogo, estás cometiendo un error grave.
 
 Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con este esquema exacto:
 {{
