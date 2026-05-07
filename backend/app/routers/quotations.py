@@ -52,6 +52,7 @@ class QuotationItemIn(BaseModel):
     marca: Optional[str] = None
     cantidad: Decimal
     precio_unitario_usd: Decimal
+    opcional: bool = False
 
 
 class QuotationIn(BaseModel):
@@ -105,6 +106,7 @@ class QuotationItemOut(BaseModel):
     precio_unitario_usd: Decimal
     precio_total_usd: Decimal
     notas: Optional[str] = None
+    opcional: bool = False
 
     class Config:
         from_attributes = True
@@ -311,9 +313,11 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
         adjusted_items.append({**item.model_dump(), "precio_unitario_usd": adj_unit})
 
     numero = _next_quote_number(db, data.ciudad_cotizacion or "med", data.business_line_id)
+    # Opcionales no suman al subtotal
     subtotal = sum(
         Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))
         for it in adjusted_items
+        if not it.get("opcional", False)
     )
     iva = subtotal * (data.iva_pct / 100)
     total = subtotal + iva
@@ -366,6 +370,7 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
                 cantidad=item["cantidad"],
                 precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
                 precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
+                opcional=bool(item.get("opcional", False)),
             )
         )
 
@@ -698,6 +703,7 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
     subtotal = sum(
         Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))
         for it in adjusted_items
+        if not it.get("opcional", False)
     )
     iva = subtotal * (data.iva_pct / 100)
     total = subtotal + iva
@@ -728,6 +734,7 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
             cantidad=item["cantidad"],
             precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
+            opcional=bool(item.get("opcional", False)),
         ))
 
     # Update linked opportunity value
@@ -825,6 +832,7 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
     subtotal = sum(
         Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))
         for it in adjusted_items
+        if not it.get("opcional", False)
     )
     iva = subtotal * (data.iva_pct / 100)
     total = subtotal + iva
@@ -865,6 +873,7 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
             cantidad=item["cantidad"],
             precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
+            opcional=bool(item.get("opcional", False)),
         ))
 
     # Relink the opportunity to the new version and clear any manual PDF

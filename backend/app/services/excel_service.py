@@ -216,9 +216,12 @@ def generate_excel(data: dict) -> bytes:
         )
     row += 1
 
-    # Ítems dinámicos
+    # Ítems dinámicos — primero los normales, luego los opcionales
     items = data.get("items", [])
-    for idx, item in enumerate(items):
+    normales  = [i for i in items if not i.get("opcional", False)]
+    opcionales = [i for i in items if i.get("opcional", False)]
+
+    for idx, item in enumerate(normales):
         _apply_item_row_style(ws, row, zebra=(idx % 2 == 1))
         ws.cell(row=row, column=2, value=idx + 1).font = _font(bold=True, size=9, color=NAVY)
         ws.cell(row=row, column=3, value=item.get("referencia_usa", ""))
@@ -228,19 +231,51 @@ def generate_excel(data: dict) -> bytes:
         ws.cell(row=row, column=7, value=float(item.get("cantidad", 0)))
         _money(ws, row, 8, float(item.get("precio_unitario_usd", 0)))
         _money(ws, row, 9, float(item.get("precio_total_usd", 0)))
-        # Alineación numérica
         for col in (7, 8, 9):
             ws.cell(row=row, column=col).alignment = _align("right")
         row += 1
 
-    # Línea de cierre de tabla
-    for col in range(FIRST_DATA_COL, LAST_COL + 1):
-        c = ws.cell(row=row - 1, column=col)
-        c.border = Border(
-            left=c.border.left, right=c.border.right,
-            top=c.border.top,
-            bottom=Side(style="medium", color=NAVY),
-        )
+    # Línea de cierre de ítems normales
+    if normales:
+        for col in range(FIRST_DATA_COL, LAST_COL + 1):
+            c = ws.cell(row=row - 1, column=col)
+            c.border = Border(
+                left=c.border.left, right=c.border.right,
+                top=c.border.top,
+                bottom=Side(style="medium", color=NAVY),
+            )
+
+    # Sección OPCIONALES
+    if opcionales:
+        ws.row_dimensions[row].height = 6
+        row += 1
+        _section_header(ws, row, "ÍTEMS OPCIONALES — No incluidos en el total")
+        row += 1
+
+        GRAY_OPT = "E2E8F0"
+        for idx, item in enumerate(opcionales):
+            ws.row_dimensions[row].height = 28
+            for col in range(FIRST_DATA_COL, LAST_COL + 1):
+                c = ws.cell(row=row, column=col)
+                c.fill   = _fill(GRAY_OPT)
+                c.border = _border(color="CBD5E1")
+                c.font   = _font(size=9, color="64748B")
+                c.alignment = _align("center") if col in (2, 7, 8, 9) else _align("left", wrap=True)
+            ws.cell(row=row, column=2, value="OPC").font = _font(bold=True, size=8, color="94A3B8")
+            ws.cell(row=row, column=3, value=item.get("referencia_usa", ""))
+            nota = item.get("notas") or ""
+            desc = item.get("descripcion", "")
+            ws.cell(row=row, column=4, value=f"{desc}  [{nota}]" if nota else desc)
+            ws.cell(row=row, column=5, value=item.get("referencia_cod_proveedor", ""))
+            ws.cell(row=row, column=6, value=item.get("marca") or "")
+            ws.cell(row=row, column=7, value="OPCIONAL")
+            ws.cell(row=row, column=7).font = _font(bold=True, size=8, color="94A3B8")
+            ref_c = ws.cell(row=row, column=8, value=float(item.get("precio_unitario_usd", 0)))
+            ref_c.number_format = '#,##0.00'
+            ref_c.alignment = _align("right")
+            ref_c.font = _font(size=9, color="94A3B8")
+            ws.cell(row=row, column=9, value="—").alignment = _align("center")
+            row += 1
 
     ws.row_dimensions[row].height = 8
     row += 1

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, Numeric, SmallInteger, String, Text
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, Numeric, SmallInteger, String, Text
+import sqlalchemy as sa
 from sqlalchemy.sql import func
 from sqlalchemy.types import TIMESTAMP
 from app.database import Base
@@ -54,4 +55,5 @@ class QuotationItem(Base):
     cantidad = Column(Numeric(8, 2), nullable=False)
     precio_unitario_usd = Column(Numeric(12, 2), nullable=False)
     precio_total_usd = Column(Numeric(14, 2), nullable=False)
-    notas = Column(Text, nullable=True)  # validación catálogo: None=OK, texto=advertencia
+    notas     = Column(Text, nullable=True)    # validación catálogo: None=OK, texto=advertencia
+    opcional  = Column(Boolean, nullable=False, default=False)  # no suma al total

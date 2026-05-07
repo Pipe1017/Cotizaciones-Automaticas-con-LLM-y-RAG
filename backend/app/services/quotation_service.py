@@ -180,12 +180,13 @@ class QuotationService:
                         "Precio en $0 — se sugiere cotizar directamente con el proveedor."
                     )
 
-        # 2. Calculate totals
+        # 2. Calculate totals — opcionales no suman
         subtotal = Decimal("0")
         for item in ai_items:
             total_item = Decimal(str(item.get("cantidad", 1))) * Decimal(str(item.get("precio_unitario_usd", 0)))
             item["precio_total_usd"] = float(total_item)
-            subtotal += total_item
+            if not item.get("opcional", False):
+                subtotal += total_item
 
         iva_pct = Decimal("19.0")
         iva = subtotal * iva_pct / 100
@@ -244,6 +245,7 @@ class QuotationService:
                     precio_unitario_usd=Decimal(str(item.get("precio_unitario_usd", 0))),
                     precio_total_usd=Decimal(str(item.get("precio_total_usd", 0))),
                     notas=item.get("notas"),
+                    opcional=bool(item.get("opcional", False)),
                 )
             )
 

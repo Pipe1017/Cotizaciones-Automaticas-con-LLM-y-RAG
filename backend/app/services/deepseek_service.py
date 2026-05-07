@@ -32,10 +32,12 @@ REGLAS CRÍTICAS — NO NEGOCIABLES:
 4. Si precio_neto_usd es null, usa 0 y anota "Precio pendiente de confirmar con proveedor" en observaciones.
 5. El array "items" NUNCA debe estar vacío. Si no hay coincidencia exacta, elige el más cercano por voltaje y capacidad.
 6. Si inventas un modelo que no existe en el catálogo, estás cometiendo un error grave.
+7. OPCIONALES: Si identificas accesorios, repuestos o complementos que el cliente podría necesitar pero no confirmó,
+   inclúyelos con "opcional": true y cantidad 0. Explica en "notas" por qué es opcional. Los opcionales NO suman al total.
 
 Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con este esquema exacto:
 {{
-  "razonamiento": "string (1-3 frases explicando por qué elegiste estos productos: qué identificaste del requerimiento, qué criterios usaste, qué supustos hiciste si faltaba info)",
+  "razonamiento": "string (1-3 frases explicando por qué elegiste estos productos: qué identificaste del requerimiento, qué criterios usaste, qué supuestos hiciste si faltaba info)",
   "items": [
     {{
       "referencia_usa": "string",
@@ -43,7 +45,9 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
       "referencia_cod_proveedor": "string (código SAP si existe, sino vacío)",
       "marca": "HOPPECKE",
       "cantidad": number,
-      "precio_unitario_usd": number
+      "precio_unitario_usd": number,
+      "opcional": false,
+      "notas": "string o null"
     }}
   ],
   "condiciones_entrega": "string",

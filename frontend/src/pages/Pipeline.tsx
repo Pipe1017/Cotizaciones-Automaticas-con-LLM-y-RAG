@@ -39,7 +39,7 @@ const fmt = (n: number) =>
   : `$${n.toFixed(0)}`
 
 // ── Edit / New-version form (shared) ──────────────────────────
-interface QItem { referencia_usa: string; descripcion: string; referencia_cod_proveedor: string; marca: string; cantidad: string; precio_unitario_usd: string }
+interface QItem { referencia_usa: string; descripcion: string; referencia_cod_proveedor: string; marca: string; cantidad: string; precio_unitario_usd: string; opcional: boolean }
 const toFormItems = (items: any[]): QItem[] =>
   items.map(it => ({
     referencia_usa: it.referencia_usa || '',
@@ -48,6 +48,7 @@ const toFormItems = (items: any[]): QItem[] =>
     marca: it.marca || '',
     cantidad: String(it.cantidad),
     precio_unitario_usd: String(it.precio_unitario_usd),
+    opcional: it.opcional || false,
   }))
 
 function QuoteEditForm({
@@ -71,10 +72,11 @@ function QuoteEditForm({
     setInitialized(true)
   }
 
-  const updateItem = (idx: number, field: keyof QItem, val: string) =>
+  const updateItem = (idx: number, field: keyof QItem, val: string | boolean) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it))
 
-  const subtotal = items.reduce((s, it) => s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
+  const subtotal = items.reduce((s, it) =>
+    it.opcional ? s : s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
   const total = subtotal * 1.19
 
   const mutFn = mode === 'edit' ? editQuotation : newQuotationVersion
@@ -91,8 +93,9 @@ function QuoteEditForm({
         descripcion: it.descripcion,
         referencia_cod_proveedor: it.referencia_cod_proveedor || undefined,
         marca: it.marca,
-        cantidad: parseFloat(it.cantidad) || 1,
+        cantidad: it.opcional ? 0 : (parseFloat(it.cantidad) || 1),
         precio_unitario_usd: parseFloat(it.precio_unitario_usd) || 0,
+        opcional: it.opcional,
       })),
     }),
     onSuccess: () => {
@@ -117,21 +120,37 @@ function QuoteEditForm({
       {/* Items table */}
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-gray-100">
+          <thead className="bg-slate-800">
             <tr>
-              {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', ''].map(h =>
-                <th key={h} className="px-2 py-1.5 text-left font-semibold text-gray-500">{h}</th>)}
+              {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', 'Opcional', ''].map(h =>
+                <th key={h} className="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-300 uppercase">{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {items.map((it, idx) => (
-              <tr key={idx} className="border-t border-gray-100">
+              <tr key={idx} className={`border-t border-slate-100 ${it.opcional ? 'bg-slate-50' : ''}`}>
                 <td className="px-1 py-1"><input value={it.referencia_usa} onChange={e => updateItem(idx, 'referencia_usa', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                 <td className="px-1 py-1"><input value={it.descripcion} onChange={e => updateItem(idx, 'descripcion', e.target.value)} className="w-52 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                 <td className="px-1 py-1"><input value={it.referencia_cod_proveedor} onChange={e => updateItem(idx, 'referencia_cod_proveedor', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                 <td className="px-1 py-1"><input value={it.marca} onChange={e => updateItem(idx, 'marca', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                <td className="px-1 py-1"><input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                <td className="px-1 py-1">
+                  {it.opcional
+                    ? <span className="text-slate-400 text-xs px-2">—</span>
+                    : <input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" />}
+                </td>
                 <td className="px-1 py-1"><input type="number" value={it.precio_unitario_usd} onChange={e => updateItem(idx, 'precio_unitario_usd', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                <td className="px-1 py-1 text-center">
+                  <button
+                    onClick={() => updateItem(idx, 'opcional', !it.opcional)}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all ${
+                      it.opcional
+                        ? 'bg-amber-100 text-amber-700 border-amber-300'
+                        : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                    }`}
+                  >
+                    {it.opcional ? 'Opcional' : 'Normal'}
+                  </button>
+                </td>
                 <td className="px-1 py-1 flex gap-1 items-center">
                   {items.length > 1 && (
                     <button onClick={() => setItems(p => p.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={13} /></button>
@@ -143,7 +162,7 @@ function QuoteEditForm({
         </table>
       </div>
 
-      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: '', cantidad: '1', precio_unitario_usd: '0' }])}
+      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: '', cantidad: '1', precio_unitario_usd: '0', opcional: false }])}
         className="text-xs text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1">
         <Plus size={12} /> Agregar ítem
       </button>
@@ -593,11 +612,11 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
 // ── Manual quote panel ─────────────────────────────────────────
 interface ManualItem {
   referencia_usa: string; descripcion: string; referencia_cod_proveedor: string
-  marca: string; cantidad: string; precio_unitario_usd: string
+  marca: string; cantidad: string; precio_unitario_usd: string; opcional: boolean
 }
 const EMPTY_ITEM: ManualItem = {
   referencia_usa: '', descripcion: '', referencia_cod_proveedor: '',
-  marca: '', cantidad: '1', precio_unitario_usd: '0',
+  marca: '', cantidad: '1', precio_unitario_usd: '0', opcional: false,
 }
 
 function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) {
@@ -612,10 +631,12 @@ function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void
   const multiplier = (1 + (opp.landed_pct || 0) / 100) * (1 + (opp.margen_pct || 0) / 100)
   const hasAdjustment = multiplier > 1.001
 
-  const updateItem = (idx: number, field: keyof ManualItem, val: string) =>
+  const updateItem = (idx: number, field: keyof ManualItem, val: string | boolean) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it))
 
-  const subtotal = items.reduce((s, it) => s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
+  // Opcionales no suman al subtotal
+  const subtotal = items.reduce((s, it) =>
+    it.opcional ? s : s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
   const total = subtotal * 1.19
 
   const save = useMutation({
@@ -646,8 +667,9 @@ function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void
         descripcion: it.descripcion,
         referencia_cod_proveedor: it.referencia_cod_proveedor || undefined,
         marca: it.marca,
-        cantidad: parseFloat(it.cantidad) || 1,
+        cantidad: it.opcional ? 0 : (parseFloat(it.cantidad) || 1),
         precio_unitario_usd: parseFloat(it.precio_unitario_usd) || 0,
+        opcional: it.opcional,
       })),
     })
   }
@@ -693,21 +715,38 @@ function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-gray-100">
+            <thead className="bg-slate-800">
               <tr>
-                {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', ''].map(h =>
-                  <th key={h} className="px-2 py-1.5 text-left font-semibold text-gray-500">{h}</th>)}
+                {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', 'Opcional', ''].map(h =>
+                  <th key={h} className="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-300 uppercase">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {items.map((it, idx) => (
-                <tr key={idx} className="border-t border-gray-100">
+                <tr key={idx} className={`border-t border-slate-100 ${it.opcional ? 'bg-slate-50' : ''}`}>
                   <td className="px-1 py-1"><input value={it.referencia_usa} onChange={e => updateItem(idx, 'referencia_usa', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                   <td className="px-1 py-1"><input value={it.descripcion} onChange={e => updateItem(idx, 'descripcion', e.target.value)} className="w-52 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                   <td className="px-1 py-1"><input value={it.referencia_cod_proveedor} onChange={e => updateItem(idx, 'referencia_cod_proveedor', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
                   <td className="px-1 py-1"><input value={it.marca} onChange={e => updateItem(idx, 'marca', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                  <td className="px-1 py-1"><input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                  <td className="px-1 py-1">
+                    {it.opcional
+                      ? <span className="text-slate-400 text-xs px-2">—</span>
+                      : <input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" />}
+                  </td>
                   <td className="px-1 py-1"><input type="number" value={it.precio_unitario_usd} onChange={e => updateItem(idx, 'precio_unitario_usd', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                  <td className="px-1 py-1 text-center">
+                    <button
+                      title={it.opcional ? 'Marcar como normal' : 'Marcar como opcional'}
+                      onClick={() => updateItem(idx, 'opcional', !it.opcional)}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all ${
+                        it.opcional
+                          ? 'bg-amber-100 text-amber-700 border-amber-300'
+                          : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                      }`}
+                    >
+                      {it.opcional ? 'Opcional' : 'Normal'}
+                    </button>
+                  </td>
                   <td className="px-1 py-1">
                     {items.length > 1 && (
                       <button onClick={() => setItems(p => p.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={13} /></button>

@@ -319,7 +319,10 @@ def generate_cotizacion(data: dict) -> bytes:
     COLS = ["#", "Referencia", "Descripción", "Cód. SAP", "Marca", "Cant.", "P. Unit. USD", "P. Total USD"]
     WIDTHS = [Cm(0.7), Cm(2.2), Cm(6.5), Cm(1.8), Cm(1.8), Cm(1.0), Cm(2.2), Cm(2.2)]
 
-    tbl = doc.add_table(rows=1 + len(items), cols=8)
+    normales   = [i for i in items if not i.get("opcional", False)]
+    opcionales = [i for i in items if i.get("opcional", False)]
+
+    tbl = doc.add_table(rows=1 + len(normales), cols=8)
     tbl.autofit = False
     for i, w in enumerate(WIDTHS):
         tbl.columns[i].width = w
@@ -331,8 +334,8 @@ def generate_cotizacion(data: dict) -> bytes:
         _para(cell, col_name, bold=True, color=WHITE, size=8,
               align=WD_ALIGN_PARAGRAPH.CENTER if i >= 5 else WD_ALIGN_PARAGRAPH.LEFT)
 
-    # Data rows
-    for r_idx, item in enumerate(items, start=1):
+    # Data rows — solo normales
+    for r_idx, item in enumerate(normales, start=1):
         row = tbl.rows[r_idx]
         bg = WHITE if r_idx % 2 == 0 else LIGHT
         vals = [
@@ -352,6 +355,49 @@ def generate_cotizacion(data: dict) -> bytes:
         for ci, (val, aln, cell) in enumerate(zip(vals, aligns, row.cells)):
             _set_cell_color(cell, bg)
             _para(cell, val, size=8, align=aln)
+
+    # Tabla de OPCIONALES
+    if opcionales:
+        doc.add_paragraph()
+        ph = doc.add_paragraph("ÍTEMS OPCIONALES — No incluidos en el total")
+        ph.runs[0].bold = True
+        ph.runs[0].font.size = Pt(9)
+        ph.runs[0].font.color.rgb = RGBColor(0x0F, 0x25, 0x60)
+
+        otbl = doc.add_table(rows=1 + len(opcionales), cols=8)
+        otbl.autofit = False
+        for i, w in enumerate(WIDTHS):
+            otbl.columns[i].width = w
+
+        ohdr = otbl.rows[0]
+        OPT_COLS = ["#", "REFERENCIA", "DESCRIPCIÓN", "COD. PROVEEDOR", "MARCA", "OPCIONAL", "PRECIO REF.", "—"]
+        for i, (col_name, cell) in enumerate(zip(OPT_COLS, ohdr.cells)):
+            _set_cell_color(cell, "64748B")
+            _para(cell, col_name, bold=True, color=WHITE, size=8,
+                  align=WD_ALIGN_PARAGRAPH.CENTER if i >= 5 else WD_ALIGN_PARAGRAPH.LEFT)
+
+        for r_idx, item in enumerate(opcionales, start=1):
+            row = otbl.rows[r_idx]
+            nota = item.get("notas") or ""
+            desc = item.get("descripcion", "")
+            desc_full = f"{desc}\n[{nota}]" if nota else desc
+            vals = [
+                f"OPC{r_idx}",
+                item.get("referencia_usa") or "—",
+                desc_full,
+                item.get("referencia_cod_proveedor") or "—",
+                item.get("marca") or "—",
+                "OPCIONAL",
+                f"${float(item.get('precio_unitario_usd', 0)):,.2f}",
+                "—",
+            ]
+            aligns = [WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT,
+                      WD_ALIGN_PARAGRAPH.LEFT,   WD_ALIGN_PARAGRAPH.CENTER,
+                      WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.CENTER,
+                      WD_ALIGN_PARAGRAPH.RIGHT,  WD_ALIGN_PARAGRAPH.CENTER]
+            for ci, (val, aln, cell) in enumerate(zip(vals, aligns, row.cells)):
+                _set_cell_color(cell, "F1F5F9")
+                _para(cell, val, size=8, color="64748B", align=aln)
 
     doc.add_paragraph()
 
