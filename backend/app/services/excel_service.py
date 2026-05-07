@@ -119,38 +119,39 @@ def fill_template(template_bytes: bytes, data: dict) -> bytes:
         ws.cell(row=row, column=col, value=value)
 
     # ── Header ──────────────────────────────────────────────────
-    cell(6,  7, data.get("cliente", ""))
-    cell(11, 1, data.get("numero_cotizacion", ""))
-    cell(11, 3, data.get("fecha", date.today()).strftime("%d/%m/%Y") if data.get("fecha") else "")
-    cell(13, 7, data.get("contacto_nombre", ""))
+    cell(6,  7,  data.get("cliente", ""))              # G6  — nombre cliente
+    cell(11, 2,  data.get("numero_cotizacion", ""))    # B11 — nº cotización
+    fecha = data.get("fecha")
+    cell(11, 5,  fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha or ""))  # E11
+    cell(13, 9,  data.get("contacto_nombre", ""))      # I13 — contacto
 
     # ── Ítems ───────────────────────────────────────────────────
     items = data.get("items", [])[:MAX_ITEMS]
     for idx, item in enumerate(items):
         row = ITEM_START_ROW + idx
-        cell(row, 1,  idx + 1)
-        cell(row, 3,  item.get("referencia_usa", ""))
-        cell(row, 4,  item.get("descripcion", ""))
-        cell(row, 5,  item.get("referencia_cod_proveedor", ""))
-        cell(row, 9,  item.get("marca", "HOPPECKE"))
-        cell(row, 12, float(item.get("cantidad", 0)))
-        cell(row, 14, float(item.get("precio_unitario_usd", 0)))
-        cell(row, 15, float(item.get("precio_total_usd", 0)))
+        cell(row, 2,  idx + 1)                                      # B  — ITEM #
+        cell(row, 3,  item.get("referencia_usa", ""))               # C  — REFERENCIA
+        cell(row, 4,  item.get("descripcion", ""))                  # D  — DESCRIPCION
+        cell(row, 8,  item.get("referencia_cod_proveedor", ""))     # H  — SAP
+        cell(row, 11, item.get("marca", "HOPPECKE"))                # K  — MARCA
+        cell(row, 13, float(item.get("cantidad", 0)))               # M  — QTD
+        cell(row, 14, float(item.get("precio_unitario_usd", 0)))    # N  — PRECIO UNIT
+        cell(row, 15, float(item.get("precio_total_usd", 0)))       # O  — PRECIO TOTAL
 
     # ── Totales ─────────────────────────────────────────────────
     subtotal = float(data.get("subtotal_usd", 0))
     iva_pct  = float(data.get("iva_pct", 19))
-    cell(22, 15, subtotal)
-    cell(23, 15, subtotal * iva_pct / 100)
-    cell(24, 15, float(data.get("total_usd", 0)))
+    cell(22, 15, subtotal)                             # O22 — SUBTOTAL
+    cell(23, 15, subtotal * iva_pct / 100)             # O23 — IVA
+    cell(24, 15, float(data.get("total_usd", 0)))      # O24 — TOTAL
 
     # ── Condiciones comerciales ──────────────────────────────────
-    cell(29, 2, data.get("observaciones", ""))
-    cell(41, 4, data.get("fecha_entrega", ""))
-    cell(43, 4, data.get("condiciones_entrega", ""))
-    cell(45, 4, data.get("condiciones_pago", ""))
-    cell(47, 4, data.get("condiciones_garantia", ""))
-    cell(49, 3, data.get("validez_oferta", "30 días"))
+    cell(29, 2, data.get("observaciones", ""))         # B29
+    cell(41, 4, data.get("fecha_entrega", ""))         # D41
+    cell(43, 4, data.get("condiciones_entrega", ""))   # D43
+    cell(45, 4, data.get("condiciones_pago", ""))      # D45
+    cell(47, 4, data.get("condiciones_garantia", ""))  # D47
+    cell(49, 4, data.get("validez_oferta", "30 días")) # D49
 
     buf = BytesIO()
     wb.save(buf)
