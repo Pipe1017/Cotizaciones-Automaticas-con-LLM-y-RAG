@@ -8,6 +8,7 @@ from app.models.opportunity import Opportunity
 from app.models.business_line import BusinessLine
 from app.models.lead import Lead
 from app.models.quotation import Quotation
+from app.models.engineering import QuotationService as QuotationServiceModel
 
 router = APIRouter()
 
@@ -95,6 +96,16 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         .all()
     )
 
+    # Margen de servicios = sum((tarifa_hora - tarifa_base) * horas) en cotizaciones activas
+    active_quote_ids_list = [q[0] for q in db.query(Opportunity.quotation_id)
+                             .filter(Opportunity.quotation_id.isnot(None)).all()]
+    margen_servicios = float(
+        db.query(func.coalesce(
+            func.sum((QuotationServiceModel.tarifa_hora_usd - QuotationServiceModel.tarifa_base_usd)
+                     * QuotationServiceModel.horas), 0
+        )).filter(QuotationServiceModel.quotation_id.in_(active_quote_ids_list)).scalar() or 0
+    )
+
     return {
         "pipeline": [
             {
@@ -111,6 +122,7 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         "comprometido_usd": comprometido,
         "margen_esperado_usd": margen_esperado,
         "margen_ganado_usd": margen_ganado,
+        "margen_servicios_usd": margen_servicios,
         "total_oportunidades": total_opps,
         "total_cotizaciones": total_quotes,
         "oportunidades_por_etapa": {(row.etapa or "Sin etapa"): row.count for row in etapas_q},

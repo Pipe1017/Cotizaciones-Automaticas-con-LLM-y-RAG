@@ -293,6 +293,12 @@ def get_quotation_items(quote_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/{quote_id}/services")
+def get_quotation_services(quote_id: int, db: Session = Depends(get_db)):
+    from app.models.engineering import QuotationService
+    return db.query(QuotationService).filter(QuotationService.quotation_id == quote_id).all()
+
+
 @router.post("", response_model=QuotationOut, status_code=201)
 def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
     """Create a manual quotation. Applies landed/margen to item prices. Generates Excel + Word + PDF."""

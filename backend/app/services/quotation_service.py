@@ -6,6 +6,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.models.quotation import Quotation, QuotationItem
+from app.models.engineering import EngineeringRole, QuotationService as QuotationServiceModel
 from app.models.product import Product
 from app.services.deepseek_service import generate_quotation_items
 from app.services.excel_service import fill_template
@@ -77,6 +78,18 @@ class QuotationService:
         ]
         return json.dumps(catalog, ensure_ascii=False)
 
+    def _roles_json(self) -> str:
+        """Devuelve el catálogo de roles de ingeniería para el prompt de la IA."""
+        roles = self.db.query(EngineeringRole).filter(EngineeringRole.activo == True).all()
+        return json.dumps([
+            {
+                "nombre": r.nombre,
+                "descripcion": r.descripcion,
+                "tarifa_hora_usd": round(float(r.tarifa_base_usd) * (1 + float(r.margen_pct) / 100), 2),
+            }
+            for r in roles
+        ], ensure_ascii=False)
+
     def _build_context(self, data) -> str:
         """Construye el contexto completo de la oportunidad para enriquecer el prompt de la IA."""
         lines = []
@@ -140,9 +153,10 @@ class QuotationService:
         margen = float(getattr(data, 'margen_pct', 0) or 0)
         bl_id  = getattr(data, "business_line_id", 1) or 1
         catalog_json = self._catalog_json(business_line_id=bl_id, landed_pct=landed, margen_pct=margen)
+        roles_json   = self._roles_json()
 
         enriched_prompt = self._build_context(data)
-        ai_result = await generate_quotation_items(enriched_prompt, catalog_json)
+        ai_result = await generate_quotation_items(enriched_prompt, catalog_json, roles_json)
         ai_reasoning = ai_result.pop("_reasoning", None)
 
         ai_items = ai_result.get("items", [])
@@ -188,9 +202,38 @@ class QuotationService:
             if not item.get("opcional", False):
                 subtotal += total_item
 
+        # Servicios de ingeniería
+        ai_servicios = ai_result.get("servicios", [])
+        roles_db = {r.nombre: r for r in self.db.query(EngineeringRole).filter(EngineeringRole.activo == True).all()}
+        servicios_subtotal = Decimal("0")
+        servicios_resolved = []  # lista de dicts con datos completos para guardar y documentos
+        for svc in ai_servicios:
+            rol_nombre = svc.get("rol", "")
+            horas = Decimal(str(svc.get("horas", 0)))
+            role = roles_db.get(rol_nombre)
+            if role:
+                tarifa_cliente = Decimal(str(round(float(role.tarifa_base_usd) * (1 + float(role.margen_pct) / 100), 2)))
+                tarifa_base    = Decimal(str(role.tarifa_base_usd))
+                role_id        = role.id
+            else:
+                tarifa_cliente = Decimal("0")
+                tarifa_base    = Decimal("0")
+                role_id        = None
+            sub_svc = horas * tarifa_cliente
+            servicios_subtotal += sub_svc
+            servicios_resolved.append({
+                "role_id": role_id,
+                "nombre": rol_nombre,
+                "horas": horas,
+                "tarifa_hora_usd": tarifa_cliente,
+                "tarifa_base_usd": tarifa_base,
+                "subtotal_usd": sub_svc,
+                "motivo": svc.get("motivo"),
+            })
+
         iva_pct = Decimal("19.0")
-        iva = subtotal * iva_pct / 100
-        total = subtotal + iva
+        iva = (subtotal + servicios_subtotal) * iva_pct / 100
+        total = subtotal + servicios_subtotal + iva
 
         # 3. Get company name
         cliente_nombre = "Cliente"
@@ -249,7 +292,20 @@ class QuotationService:
                 )
             )
 
-        # 6. Link to existing opportunity or auto-create a new one
+        # 6. Guardar servicios de ingeniería
+        for svc in servicios_resolved:
+            self.db.add(QuotationServiceModel(
+                quotation_id=quote.id,
+                role_id=svc["role_id"],
+                nombre=svc["nombre"],
+                horas=svc["horas"],
+                tarifa_hora_usd=svc["tarifa_hora_usd"],
+                tarifa_base_usd=svc["tarifa_base_usd"],
+                subtotal_usd=svc["subtotal_usd"],
+                motivo=svc["motivo"],
+            ))
+
+        # 7. Link to existing opportunity or auto-create a new one
         from app.models.opportunity import Opportunity
         from sqlalchemy import or_ as _or
         if opp_id:
@@ -301,7 +357,18 @@ class QuotationService:
             "business_line_nombre": self._bl_nombre(bl_id),
             "titulo_oportunidad": getattr(data, 'titulo_oportunidad', None) or f"Cot. {numero}",
             "items": ai_items,
+            "servicios": [
+                {
+                    "nombre": s["nombre"],
+                    "horas": float(s["horas"]),
+                    "tarifa_hora_usd": float(s["tarifa_hora_usd"]),
+                    "subtotal_usd": float(s["subtotal_usd"]),
+                    "motivo": s["motivo"],
+                }
+                for s in servicios_resolved
+            ],
             "subtotal_usd": float(subtotal),
+            "servicios_subtotal_usd": float(servicios_subtotal),
             "iva_pct": float(iva_pct),
             "total_usd": float(total),
             "observaciones": ai_result.get("observaciones", ""),

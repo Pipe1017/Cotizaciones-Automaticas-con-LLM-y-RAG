@@ -401,20 +401,66 @@ def generate_cotizacion(data: dict) -> bytes:
 
     doc.add_paragraph()
 
+    # ── Servicios de Ingeniería ───────────────────────────────
+    servicios = data.get("servicios", [])
+    if servicios:
+        ph = doc.add_paragraph("SERVICIOS DE INGENIERÍA")
+        ph.runs[0].bold = True
+        ph.runs[0].font.size = Pt(9)
+        ph.runs[0].font.color.rgb = RGBColor(0x0F, 0x25, 0x60)
+
+        stbl = doc.add_table(rows=1 + len(servicios) + 1, cols=4)
+        stbl.autofit = False
+        for i, w in enumerate([Cm(4.5), Cm(8), Cm(1.5), Cm(3.5)]):
+            stbl.columns[i].width = w
+
+        for i, txt in enumerate(["ROL", "MOTIVO / DESCRIPCIÓN", "HORAS", "SUBTOTAL"]):
+            _set_cell_color(stbl.rows[0].cells[i], "64748B")
+            _para(stbl.rows[0].cells[i], txt, bold=True, color=WHITE, size=8,
+                  align=WD_ALIGN_PARAGRAPH.CENTER if i >= 2 else WD_ALIGN_PARAGRAPH.LEFT)
+
+        svc_sub = Decimal("0")
+        for r_idx, svc in enumerate(servicios, start=1):
+            row = stbl.rows[r_idx]
+            sub = float(svc.get("subtotal_usd", 0))
+            svc_sub += Decimal(str(sub))
+            bg = WHITE if r_idx % 2 == 0 else LIGHT
+            for c in row.cells:
+                _set_cell_color(c, bg)
+            _para(row.cells[0], svc.get("nombre", ""), bold=True, size=8)
+            _para(row.cells[1], svc.get("motivo", ""), size=8, color="64748B")
+            _para(row.cells[2], str(svc.get("horas", 0)), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+            _para(row.cells[3], f"${sub:,.2f}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+
+        tot_row = stbl.rows[-1]
+        _set_cell_color(tot_row.cells[0], LIGHT)
+        _set_cell_color(tot_row.cells[1], LIGHT)
+        _set_cell_color(tot_row.cells[2], LIGHT)
+        _set_cell_color(tot_row.cells[3], LIGHT)
+        _para(tot_row.cells[2], "Subtotal", bold=True, size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+        _para(tot_row.cells[3], f"${float(svc_sub):,.2f}", bold=True, size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+
+        doc.add_paragraph()
+
     # ── Totales ──────────────────────────────────────────────
-    ttbl = doc.add_table(rows=3, cols=2)
+    svc_subtotal = float(data.get("servicios_subtotal_usd", 0))
+    totals_rows = [("Subtotal Productos USD", f"${subtotal:,.2f}")]
+    if svc_subtotal > 0:
+        totals_rows.append(("Subtotal Servicios USD", f"${svc_subtotal:,.2f}"))
+    totals_rows += [
+        (f"IVA {iva_pct:.0f}%", f"${(subtotal + svc_subtotal) * iva_pct / 100:,.2f}"),
+        ("TOTAL USD",           f"${total:,.2f}"),
+    ]
+
+    ttbl = doc.add_table(rows=len(totals_rows), cols=2)
     ttbl.autofit = False
     ttbl.columns[0].width = Cm(14)
     ttbl.columns[1].width = Cm(3.5)
 
-    totals = [
-        ("Subtotal USD (sin IVA)", f"${subtotal:,.2f}"),
-        (f"IVA {iva_pct:.0f}%",    f"${subtotal * iva_pct / 100:,.2f}"),
-        ("TOTAL USD",              f"${total:,.2f}"),
-    ]
+    totals = totals_rows
     for i, (lbl, val) in enumerate(totals):
         lc, vc = ttbl.rows[i].cells
-        is_total = i == 2
+        is_total = (lbl == "TOTAL USD")
         bg = NAVY if is_total else LIGHT
         tc = WHITE if is_total else "374151"
         _set_cell_color(lc, bg)

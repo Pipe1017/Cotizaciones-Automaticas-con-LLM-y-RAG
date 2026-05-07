@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
   getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
-  getQuotationItems, editQuotation, newQuotationVersion, getQuotationVersions,
+  getQuotationItems, editQuotation, newQuotationVersion, getQuotationVersions, getQuotationServices,
   uploadOpportunityExcel, uploadOpportunityPdf,
 } from '../lib/api'
 import { useState, useRef } from 'react'
@@ -226,6 +226,42 @@ function CatalogWarnings({ quotationId }: { quotationId: number }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Servicios de Ingeniería en cotización ─────────────────────
+function ServicesInfo({ quotationId }: { quotationId: number }) {
+  const { data: services = [] } = useQuery({
+    queryKey: ['quotation-services', quotationId],
+    queryFn: () => getQuotationServices(quotationId),
+  })
+
+  if (!(services as any[]).length) return null
+
+  const total = (services as any[]).reduce((s: number, sv: any) => s + Number(sv.subtotal_usd), 0)
+
+  return (
+    <div className="pt-2 border-t border-slate-100">
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <span>Servicios de Ingeniería</span>
+        <span className="text-[10px] font-normal text-slate-400 normal-case">— incluidos en el total</span>
+      </p>
+      <div className="space-y-1.5">
+        {(services as any[]).map((sv: any) => (
+          <div key={sv.id} className="flex items-start justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2 text-xs">
+            <div>
+              <span className="font-semibold text-slate-700">{sv.nombre}</span>
+              <span className="text-slate-400 ml-2">{Number(sv.horas).toFixed(1)}h × ${Number(sv.tarifa_hora_usd).toFixed(2)}/h</span>
+              {sv.motivo && <p className="text-slate-400 mt-0.5 text-[11px] italic">{sv.motivo}</p>}
+            </div>
+            <span className="font-semibold text-slate-800 whitespace-nowrap">${Number(sv.subtotal_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+        ))}
+        <div className="flex justify-end text-xs font-semibold text-slate-700 px-1">
+          Subtotal servicios: ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        </div>
       </div>
     </div>
   )
@@ -495,6 +531,7 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           <ManualPdfAdjust opp={opp} />
         </div>
       )}
+      <ServicesInfo quotationId={quotationId} />
       <CatalogWarnings quotationId={quotationId} />
       {quote && <AITrace quote={quote} />}
       <VersionHistory quotationId={quotationId} />

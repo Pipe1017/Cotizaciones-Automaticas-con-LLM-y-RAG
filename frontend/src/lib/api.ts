@@ -107,6 +107,8 @@ export const newQuotationVersion = (id: number, data: object) =>
   api.post(`/quotations/${id}/new-version`, data).then(r => r.data)
 export const getQuotationVersions = (id: number) =>
   api.get(`/quotations/${id}/versions`).then(r => r.data)
+export const getQuotationServices = (id: number) =>
+  api.get(`/quotations/${id}/services`).then(r => r.data)
 
 // ── Leads ──────────────────────────────────────────────────────
 export const getLeads = (params?: object) =>

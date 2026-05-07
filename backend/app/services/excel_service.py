@@ -280,17 +280,64 @@ def generate_excel(data: dict) -> bytes:
     ws.row_dimensions[row].height = 8
     row += 1
 
+    # ── SERVICIOS DE INGENIERÍA ────────────────────────────────────
+    servicios = data.get("servicios", [])
+    if servicios:
+        _section_header(ws, row, "SERVICIOS DE INGENIERÍA")
+        row += 1
+        # sub-header
+        ws.row_dimensions[row].height = 16
+        for col, txt in [(2, "ROL"), (4, "DESCRIPCIÓN / MOTIVO"), (7, "HORAS"), (8, "TARIFA/H"), (9, "SUBTOTAL")]:
+            c = ws.cell(row=row, column=col, value=txt)
+            c.font = _font(bold=True, size=8, color="64748B")
+            c.fill = _fill(LIGHT)
+            c.alignment = _align("center" if col in (7, 8, 9) else "left")
+        row += 1
+        for svc in servicios:
+            ws.row_dimensions[row].height = 22
+            for col in range(FIRST_DATA_COL, LAST_COL + 1):
+                c = ws.cell(row=row, column=col)
+                c.fill = _fill("F8FAFC")
+                c.border = _border(color="E2E8F0")
+                c.font = _font(size=9)
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+            ws.cell(row=row, column=2, value=svc.get("nombre", "")).font = _font(bold=True, size=9, color=NAVY)
+            ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=6)
+            ws.cell(row=row, column=4, value=svc.get("motivo", "")).font = _font(size=8, color="64748B")
+            ws.cell(row=row, column=4).alignment = _align("left", wrap=True)
+            _money(ws, row, 7, float(svc.get("horas", 0))).alignment = _align("right")
+            _money(ws, row, 8, float(svc.get("tarifa_hora_usd", 0))).alignment = _align("right")
+            _money(ws, row, 9, float(svc.get("subtotal_usd", 0))).alignment = _align("right")
+            row += 1
+        # subtotal servicios
+        ws.row_dimensions[row].height = 16
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=8)
+        lc = ws.cell(row=row, column=2, value="Subtotal Servicios")
+        lc.font = _font(bold=True, size=9, color=NAVY)
+        lc.fill = _fill(LIGHT)
+        lc.alignment = _align("right")
+        vc = ws.cell(row=row, column=9, value=float(data.get("servicios_subtotal_usd", 0)))
+        vc.number_format = '#,##0.00'
+        vc.font = _font(bold=True, size=9, color=NAVY)
+        vc.fill = _fill(LIGHT)
+        vc.alignment = _align("right")
+        row += 1
+        ws.row_dimensions[row].height = 6
+        row += 1
+
     # ── TOTALES ────────────────────────────────────────────────────
     subtotal = float(data.get("subtotal_usd", 0))
+    svc_sub  = float(data.get("servicios_subtotal_usd", 0))
     iva_pct  = float(data.get("iva_pct", 19))
-    iva      = subtotal * iva_pct / 100
+    iva      = (subtotal + svc_sub) * iva_pct / 100
     total    = float(data.get("total_usd", 0))
 
-    for label, value, is_total in [
-        ("SUBTOTAL USD",  subtotal, False),
-        (f"IVA {int(iva_pct)}%", iva,      False),
-        ("TOTAL USD",     total,    True),
-    ]:
+    rows_totales = [("SUBTOTAL PRODUCTOS", subtotal, False)]
+    if svc_sub > 0:
+        rows_totales.append(("SUBTOTAL SERVICIOS", svc_sub, False))
+    rows_totales += [(f"IVA {int(iva_pct)}%", iva, False), ("TOTAL USD", total, True)]
+
+    for label, value, is_total in rows_totales:
         ws.row_dimensions[row].height = 18
         ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
         lc = ws.cell(row=row, column=2, value=label)

@@ -75,6 +75,7 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
   const comprometido    = kpis?.comprometido_usd ?? 0
   const margenEsperado  = kpis?.margen_esperado_usd ?? 0
   const margenGanado    = kpis?.margen_ganado_usd ?? 0
+  const margenServicios = kpis?.margen_servicios_usd ?? 0
   const totalOpps       = kpis?.total_oportunidades ?? 0
   const totalQuotes     = kpis?.total_cotizaciones ?? 0
   const pct = totalPipeline > 0 ? Math.round(comprometido / totalPipeline * 100) : 0
@@ -160,6 +161,10 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
               icon={TrendingDown} color="bg-teal-600" />
             <KPI label="Margen Ganado USD" value={fmt(margenGanado)}
               sub="De oportunidades Ganadas" icon={TrendingUp} color="bg-amber-500" />
+            {margenServicios > 0 && (
+              <KPI label="Margen Servicios USD" value={fmt(margenServicios)}
+                sub="De servicios de ingeniería activos" icon={TrendingUp} color="bg-cyan-600" />
+            )}
             <KPI label="Oportunidades" value={totalOpps}
               sub="En pipeline" icon={TrendingUp} color="bg-slate-600" />
             <KPI label="Cotizaciones" value={totalQuotes}

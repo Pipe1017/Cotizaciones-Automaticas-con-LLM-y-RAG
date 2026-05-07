@@ -12,6 +12,7 @@ from app.routers import (
     companies,
     contacts,
     dashboard,
+    engineering,
     exchange_rates,
     leads,
     opportunities,
@@ -77,6 +78,7 @@ app.include_router(dashboard.router,      prefix="/api/dashboard",       tags=["
 app.include_router(business_lines.router, prefix="/api/business-lines",  tags=["Líneas de Negocio"],  **_p)
 app.include_router(proveedores.router,    prefix="/api/proveedores",     tags=["Proveedores"],        **_p)
 app.include_router(backup.router,         prefix="/api/backup",          tags=["Backup"],             **_p)
+app.include_router(engineering.router,    prefix="/api/engineering-roles", tags=["Ingeniería"],         **_p)
 
 
 @app.get("/", tags=["Health"])

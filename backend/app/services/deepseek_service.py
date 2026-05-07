@@ -13,8 +13,11 @@ El catálogo incluye dos categorías principales:
 - "traccion": baterías de tracción para montacargas y vehículos eléctricos (24V, 36V, 48V, 80V — familia HPzB, HPzS)
 - "estacionaria": baterías estacionarias para UPS, solar y telecomunicaciones (familia Xgrid Xtreme OPzV — celdas 2V o módulos 12V)
 
-CATÁLOGO DISPONIBLE:
+CATÁLOGO DE PRODUCTOS:
 {catalog}
+
+CATÁLOGO DE SERVICIOS DE INGENIERÍA:
+{roles}
 
 INSTRUCCIONES:
 - Analiza el requerimiento e identifica si se trata de una aplicación de TRACCIÓN o ESTACIONARIA.
@@ -34,10 +37,14 @@ REGLAS CRÍTICAS — NO NEGOCIABLES:
 6. Si inventas un modelo que no existe en el catálogo, estás cometiendo un error grave.
 7. OPCIONALES: Si identificas accesorios, repuestos o complementos que el cliente podría necesitar pero no confirmó,
    inclúyelos con "opcional": true y cantidad 0. Explica en "notas" por qué es opcional. Los opcionales NO suman al total.
+8. SERVICIOS DE INGENIERÍA: SOLO incluye servicios si el usuario los menciona EXPLÍCITAMENTE o pide que los infiera.
+   Si no se mencionan, deja "servicios" como array vacío [].
+   Si el usuario pide que los infiera, razona en "razonamiento" cuántas horas y por qué.
+   El campo "rol" debe coincidir EXACTAMENTE con el "nombre" de un rol del catálogo de servicios.
 
 Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con este esquema exacto:
 {{
-  "razonamiento": "string (1-3 frases explicando por qué elegiste estos productos: qué identificaste del requerimiento, qué criterios usaste, qué supuestos hiciste si faltaba info)",
+  "razonamiento": "string (explica productos elegidos, supuestos, y si hay servicios por qué esas horas)",
   "items": [
     {{
       "referencia_usa": "string",
@@ -50,6 +57,13 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
       "notas": "string o null"
     }}
   ],
+  "servicios": [
+    {{
+      "rol": "string (nombre exacto del rol del catálogo de servicios)",
+      "horas": number,
+      "motivo": "string (por qué se necesitan estas horas)"
+    }}
+  ],
   "condiciones_entrega": "string",
   "condiciones_pago": "string",
   "condiciones_garantia": "string",
@@ -58,11 +72,11 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
 }}"""
 
 
-def _build_request_body(prompt: str, catalog_json: str) -> dict:
+def _build_request_body(prompt: str, catalog_json: str, roles_json: str = "[]") -> dict:
     body: dict = {
         "model": settings.deepseek_model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT.format(catalog=catalog_json)},
+            {"role": "system", "content": SYSTEM_PROMPT.format(catalog=catalog_json, roles=roles_json)},
             {"role": "user",   "content": prompt},
         ],
         "temperature": 0.1,
@@ -86,13 +100,13 @@ def _extract_result(response_json: dict) -> tuple[dict, str | None]:
     return result, reasoning
 
 
-async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
+async def generate_quotation_items(prompt: str, catalog_json: str, roles_json: str = "[]") -> dict:
     """
     Llama a DeepSeek y retorna el dict con items + condiciones.
     También incluye 'reasoning' si el modelo lo devuelve.
     """
     url = f"{settings.deepseek_base_url.rstrip('/')}/v1/chat/completions"
-    body = _build_request_body(prompt, catalog_json)
+    body = _build_request_body(prompt, catalog_json, roles_json)
 
     async with httpx.AsyncClient(timeout=90.0) as client:
         response = await client.post(
