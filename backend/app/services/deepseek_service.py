@@ -5,9 +5,6 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-
 SYSTEM_PROMPT = """Eres un asistente de ventas especializado en baterías industriales HOPPECKE
 para la empresa OPEX SAS Colombia. Tu función es analizar requerimientos de clientes y
 seleccionar los productos más adecuados del catálogo para generar cotizaciones.
@@ -52,28 +49,66 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
 }}"""
 
 
-async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
-    system = SYSTEM_PROMPT.format(catalog=catalog_json)
+def _build_request_body(prompt: str, catalog_json: str) -> dict:
+    body: dict = {
+        "model": settings.deepseek_model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT.format(catalog=catalog_json)},
+            {"role": "user",   "content": prompt},
+        ],
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+    }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    if settings.deepseek_use_reasoning:
+        body["reasoning_effort"] = settings.deepseek_reasoning_effort
+
+    return body
+
+
+def _extract_result(response_json: dict) -> tuple[dict, str | None]:
+    """Retorna (items_dict, reasoning_content | None)."""
+    choice = response_json["choices"][0]["message"]
+    content = choice.get("content", "")
+    reasoning = choice.get("reasoning_content") or choice.get("thinking")
+
+    result = json.loads(content)
+    return result, reasoning
+
+
+async def generate_quotation_items(prompt: str, catalog_json: str) -> dict:
+    """
+    Llama a DeepSeek y retorna el dict con items + condiciones.
+    También incluye 'reasoning' si el modelo lo devuelve.
+    """
+    url = f"{settings.deepseek_base_url.rstrip('/')}/v1/chat/completions"
+    body = _build_request_body(prompt, catalog_json)
+
+    logger.info("DeepSeek request — model=%s reasoning=%s url=%s",
+                settings.deepseek_model, settings.deepseek_use_reasoning, url)
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
         response = await client.post(
-            DEEPSEEK_API_URL,
+            url,
             headers={
                 "Authorization": f"Bearer {settings.deepseek_api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": settings.deepseek_model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-                "response_format": {"type": "json_object"},
-            },
+            json=body,
         )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        result = json.loads(content)
-        logger.info("DeepSeek response items: %d", len(result.get("items", [])))
-        return result
+
+        if response.status_code != 200:
+            logger.error("DeepSeek error %s: %s", response.status_code, response.text[:500])
+            response.raise_for_status()
+
+        data = response.json()
+
+    result, reasoning = _extract_result(data)
+    logger.info("DeepSeek response — items=%d reasoning_chars=%s",
+                len(result.get("items", [])),
+                len(reasoning) if reasoning else "none")
+
+    if reasoning:
+        result["_reasoning"] = reasoning
+
+    return result
