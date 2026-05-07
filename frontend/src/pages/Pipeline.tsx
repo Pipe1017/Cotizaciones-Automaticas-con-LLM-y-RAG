@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
-  getCompanies, getBusinessLines, createQuotation, getQuotation,
+  getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
   getQuotationItems, editQuotation, newQuotationVersion,
   uploadOpportunityExcel, uploadOpportunityPdf, updateQuotationStatus,
-  previewIa,
 } from '../lib/api'
 import { useState, useRef } from 'react'
 import {
@@ -187,6 +186,54 @@ function QuoteEditForm({
   )
 }
 
+// ── Ajuste manual de PDF dentro de QuotationInfo ───────────────
+function ManualPdfAdjust({ opp }: { opp: any }) {
+  const qc = useQueryClient()
+  const pdfRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
+
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadOpportunityPdf(opp.id, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+  })
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) upload.mutate(file)
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+        <Upload size={11} /> Reemplazar PDF manualmente
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+      {opp.file_manual_pdf ? (
+        <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <Upload size={10} /> Ajustado manualmente
+        </span>
+      ) : null}
+      <button onClick={() => pdfRef.current?.click()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition-colors">
+        <Upload size={12} /> {opp.file_manual_pdf ? 'Reemplazar PDF' : 'Cargar PDF ajustado'}
+      </button>
+      {opp.file_manual_pdf && (
+        <a href={`/api/opportunities/${opp.id}/download/pdf`}
+          className="text-xs text-gray-500 underline hover:text-gray-700">Ver PDF manual</a>
+      )}
+      {upload.isPending && <span className="text-xs text-gray-400 animate-pulse">Subiendo...</span>}
+      {upload.isSuccess && <span className="text-xs text-emerald-600">Guardado</span>}
+      <button onClick={() => setOpen(false)} className="ml-auto text-gray-300 hover:text-gray-500"><X size={13} /></button>
+      <input ref={pdfRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
+    </div>
+  )
+}
+
 // ── Quotation info (opp already has a quote) ───────────────────
 function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; numero?: string; opp: any }) {
   const [mode, setMode] = useState<null | 'edit' | 'new-version'>(null)
@@ -270,101 +317,58 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
 
       {/* Download links */}
       {quote && (
-        <div className="flex gap-2 flex-wrap">
-          {quote.file_path_minio && (
-            <a href={`/api/quotations/${quotationId}/download`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
-              <FileText size={13} /> Excel
-            </a>
-          )}
-          {quote.file_path_carta && (
-            <a href={`/api/quotations/${quotationId}/download/carta`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 text-xs font-medium hover:bg-blue-50 transition-colors">
-              <FileText size={13} /> Carta
-            </a>
-          )}
-          {quote.file_path_cotizacion && (
-            <a href={`/api/quotations/${quotationId}/download/cotizacion-word`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-300 text-brand-700 text-xs font-medium hover:bg-brand-50 transition-colors">
-              <FileText size={13} /> Cot.
-            </a>
-          )}
-          {quote.file_path_pdf && (
-            <a href={`/api/quotations/${quotationId}/download/pdf-combinado`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors">
-              <Download size={13} /> PDF
-            </a>
-          )}
+        <div className="space-y-2">
+          <div className="flex gap-2 flex-wrap items-center">
+            {quote.file_path_minio && (
+              <a href={`/api/quotations/${quotationId}/download`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
+                <FileText size={13} /> Excel
+              </a>
+            )}
+            {quote.file_path_carta && (
+              <a href={`/api/quotations/${quotationId}/download/carta`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 text-xs font-medium hover:bg-blue-50 transition-colors">
+                <FileText size={13} /> Carta
+              </a>
+            )}
+            {quote.file_path_cotizacion && (
+              <a href={`/api/quotations/${quotationId}/download/cotizacion-word`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-300 text-brand-700 text-xs font-medium hover:bg-brand-50 transition-colors">
+                <FileText size={13} /> Cot.
+              </a>
+            )}
+            {opp.file_manual_pdf ? (
+              <a href={`/api/opportunities/${opp.id}/download/pdf`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-50 transition-colors">
+                <Download size={13} /> PDF
+                <span className="ml-1 text-[9px] font-bold bg-amber-200 text-amber-800 px-1 rounded">manual</span>
+              </a>
+            ) : quote.file_path_pdf ? (
+              <a href={`/api/quotations/${quotationId}/download/pdf-combinado`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors">
+                <Download size={13} /> PDF
+              </a>
+            ) : null}
+          </div>
+          <ManualPdfAdjust opp={opp} />
         </div>
       )}
     </div>
   )
 }
 
-// ── AI generator panel — preview antes de guardar ──────────────
-interface AIPreview {
-  items: any[]
-  condiciones_pago: string
-  condiciones_entrega: string
-  condiciones_garantia: string
-  observaciones: string
-}
-
+// ── AI generator panel ─────────────────────────────────────────
 function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) {
   const qc = useQueryClient()
   const [prompt, setPrompt] = useState('')
   const [ciudad, setCiudad] = useState('med')
   const [contacto, setContacto] = useState(opp.asesor || '')
-  const [preview, setPreview] = useState<AIPreview | null>(null)
-  const [items, setItems] = useState<any[]>([])
   const [pagos, setPagos] = useState('30 días')
+  const [entrega, setEntrega] = useState('')
   const [garantia, setGarantia] = useState('1 año')
 
-  const fetchPreview = useMutation({
-    mutationFn: () => previewIa({
-      prompt,
-      business_line_id: opp.business_line_id || 1,
-      condiciones_pago: pagos,
-      condiciones_garantia: garantia,
-    }),
-    onSuccess: (data: AIPreview) => {
-      setPreview(data)
-      setItems(data.items.map((it: any) => ({
-        referencia_usa: it.referencia_usa || '',
-        descripcion: it.descripcion || '',
-        referencia_cod_proveedor: it.referencia_cod_proveedor || '',
-        marca: it.marca || 'HOPPECKE',
-        cantidad: String(it.cantidad ?? 1),
-        precio_unitario_usd: String(it.precio_unitario_usd ?? 0),
-      })))
-      setPagos(data.condiciones_pago || pagos)
-      setGarantia(data.condiciones_garantia || garantia)
-    },
-  })
-
-  const save = useMutation({
-    mutationFn: () => createQuotation({
-      opportunity_id: opp.id,
-      company_id: opp.company_id || undefined,
-      business_line_id: opp.business_line_id || 1,
-      ciudad_cotizacion: ciudad,
-      contacto_nombre: contacto || undefined,
-      asesor: opp.asesor || 'Aura María Gallego',
-      condiciones_pago: pagos,
-      condiciones_garantia: garantia,
-      condiciones_entrega: preview?.condiciones_entrega || '',
-      observaciones: preview?.observaciones || '',
-      landed_pct: opp.landed_pct ?? 0,
-      margen_pct: opp.margen_pct ?? 0,
-      items: items.map(it => ({
-        referencia_usa: it.referencia_usa || undefined,
-        descripcion: it.descripcion,
-        referencia_cod_proveedor: it.referencia_cod_proveedor || undefined,
-        marca: it.marca,
-        cantidad: parseFloat(it.cantidad) || 1,
-        precio_unitario_usd: parseFloat(it.precio_unitario_usd) || 0,
-      })),
-    }),
+  const generate = useMutation({
+    mutationFn: generateQuotation,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['opportunities'] })
       qc.invalidateQueries({ queryKey: ['quotations'] })
@@ -372,118 +376,75 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
     },
   })
 
-  const updateItem = (idx: number, field: string, val: string) =>
-    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it))
-
-  const subtotal = items.reduce((s, it) =>
-    s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
-
-  // Vista 1: formulario de prompt
-  if (!preview) {
-    return (
-      <div className="space-y-3">
-        <textarea rows={3} value={prompt} onChange={e => setPrompt(e.target.value)}
-          placeholder="Describe el requerimiento: voltaje, capacidad, conectores, aplicación..."
-          className="w-full input-base resize-none text-sm" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div>
-            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Ciudad</label>
-            <select value={ciudad} onChange={e => setCiudad(e.target.value)} className="input-base w-full text-sm">
-              {CIUDADES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Contacto</label>
-            <input value={contacto} onChange={e => setContacto(e.target.value)} className="input-base w-full text-sm" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
-            <input value={pagos} onChange={e => setPagos(e.target.value)} className="input-base w-full text-sm" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Garantía</label>
-            <input value={garantia} onChange={e => setGarantia(e.target.value)} className="input-base w-full text-sm" />
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => fetchPreview.mutate()} disabled={fetchPreview.isPending || !prompt.trim()}
-            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-            <Sparkles size={14} />
-            {fetchPreview.isPending ? 'Consultando IA...' : 'Previsualizar con IA'}
-          </button>
-          {fetchPreview.isPending && (
-            <p className="text-xs text-gray-400 animate-pulse">Analizando catálogo y generando propuesta...</p>
-          )}
-        </div>
-        {fetchPreview.isError && (
-          <p className="text-sm text-red-500">Error: {(fetchPreview.error as any)?.response?.data?.detail || 'Error desconocido'}</p>
-        )}
-      </div>
-    )
+  const handleGenerate = () => {
+    if (!prompt.trim()) return
+    generate.mutate({
+      prompt,
+      opportunity_id: opp.id,
+      company_id: opp.company_id || undefined,
+      business_line_id: opp.business_line_id || 1,
+      ciudad_cotizacion: ciudad,
+      contacto_nombre: contacto || undefined,
+      asesor: opp.asesor || 'Aura María Gallego',
+      condiciones_pago: pagos || undefined,
+      condiciones_entrega: entrega || undefined,
+      condiciones_garantia: garantia || undefined,
+      landed_pct: opp.landed_pct ?? 0,
+      margen_pct: opp.margen_pct ?? 0,
+    })
   }
 
-  // Vista 2: preview editable
+  const multiplier = (1 + (opp.landed_pct || 0) / 100) * (1 + (opp.margen_pct || 0) / 100)
+  const hasAdjustment = multiplier > 1.001
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-xs text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2">
-        <Sparkles size={13} />
-        <span className="font-semibold">Propuesta generada por IA</span>
-        <span className="text-brand-500">— revisa y edita antes de guardar</span>
-        <button onClick={() => setPreview(null)} className="ml-auto text-brand-400 hover:text-brand-600">
-          <X size={14} />
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead className="bg-gray-100">
-            <tr>
-              {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', ''].map(h =>
-                <th key={h} className="px-2 py-1.5 text-left font-semibold text-gray-500">{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, idx) => (
-              <tr key={idx} className="border-t border-gray-100">
-                <td className="px-1 py-1"><input value={it.referencia_usa} onChange={e => updateItem(idx, 'referencia_usa', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                <td className="px-1 py-1"><input value={it.descripcion} onChange={e => updateItem(idx, 'descripcion', e.target.value)} className="w-52 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                <td className="px-1 py-1"><input value={it.referencia_cod_proveedor} onChange={e => updateItem(idx, 'referencia_cod_proveedor', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                <td className="px-1 py-1"><input value={it.marca} onChange={e => updateItem(idx, 'marca', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
-                <td className="px-1 py-1"><input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
-                <td className="px-1 py-1"><input type="number" value={it.precio_unitario_usd} onChange={e => updateItem(idx, 'precio_unitario_usd', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
-                <td className="px-1 py-1">
-                  {items.length > 1 && (
-                    <button onClick={() => setItems(p => p.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={13} /></button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: 'HOPPECKE', cantidad: '1', precio_unitario_usd: '0' }])}
-        className="text-xs text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1">
-        <Plus size={12} /> Agregar ítem
-      </button>
-
-      <div className="flex justify-end gap-5 text-xs font-medium text-gray-600">
-        <span>Subtotal: <strong>${subtotal.toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
-        <span>IVA 19%: <strong>${(subtotal * 0.19).toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
-        <span className="text-emerald-700">Total: <strong>${(subtotal * 1.19).toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
-      </div>
-
-      {save.isError && (
-        <p className="text-sm text-red-500">{(save.error as any)?.response?.data?.detail || 'Error al guardar'}</p>
+      {hasAdjustment && (
+        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="font-semibold">Costeo activo:</span>
+          <span>Landed {opp.landed_pct}% + Margen {opp.margen_pct}% → ×{multiplier.toFixed(3)}</span>
+          <span className="text-amber-500">— precios del catálogo ya incluyen este ajuste</span>
+        </div>
       )}
+      <textarea rows={2} value={prompt} onChange={e => setPrompt(e.target.value)}
+        placeholder='Describe el requerimiento: voltaje, capacidad, conectores, condiciones...'
+        className="w-full input-base resize-none text-sm" />
 
-      <div className="flex gap-3">
-        <button onClick={() => save.mutate()} disabled={save.isPending || items.some(it => !it.descripcion)}
-          className="btn-primary text-sm disabled:opacity-50">
-          {save.isPending ? 'Guardando...' : 'Guardar Cotización'}
-        </button>
-        <button onClick={() => setPreview(null)} className="btn-ghost text-sm">Volver a editar prompt</button>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Ciudad</label>
+          <select value={ciudad} onChange={e => setCiudad(e.target.value)} className="input-base w-full text-sm">
+            {CIUDADES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Contacto</label>
+          <input value={contacto} onChange={e => setContacto(e.target.value)} className="input-base w-full text-sm" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
+          <input value={pagos} onChange={e => setPagos(e.target.value)} className="input-base w-full text-sm" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Garantía</label>
+          <input value={garantia} onChange={e => setGarantia(e.target.value)} className="input-base w-full text-sm" />
+        </div>
       </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={handleGenerate} disabled={generate.isPending || !prompt.trim()}
+          className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
+          <Sparkles size={14} />
+          {generate.isPending ? 'Generando con IA...' : 'Generar Cotización'}
+        </button>
+        {generate.isPending && (
+          <p className="text-xs text-gray-400 animate-pulse">Consultando catálogo y generando documentos...</p>
+        )}
+      </div>
+
+      {generate.isError && (
+        <p className="text-sm text-red-500">Error: {(generate.error as any)?.response?.data?.detail || 'Error desconocido'}</p>
+      )}
     </div>
   )
 }
