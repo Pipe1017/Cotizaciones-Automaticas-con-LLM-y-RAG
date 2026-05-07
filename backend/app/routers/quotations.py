@@ -175,6 +175,47 @@ def list_cities():
     return [{"code": k, "nombre": v} for k, v in CITY_CODES.items()]
 
 
+@router.post("/preview-ia")
+async def preview_ia(data: GenerateQuotationIn, db: Session = Depends(get_db)):
+    """Llama a DeepSeek y devuelve los ítems sugeridos SIN guardar nada en la BD.
+    El usuario puede revisarlos, editarlos y luego confirmar con POST /quotations."""
+    from app.models.product import Product
+    from app.services.deepseek_service import generate_quotation_items
+    import json
+
+    products = (
+        db.query(Product)
+        .filter(
+            Product.activo == True,
+            Product.precio_neto_usd.isnot(None),
+            Product.business_line_id == data.business_line_id,
+        )
+        .all()
+    )
+    catalog_json = json.dumps([
+        {
+            "id": p.id,
+            "modelo": p.modelo_hoppecke,
+            "categoria": p.categoria or "",
+            "precio_usd": float(p.precio_neto_usd) if p.precio_neto_usd else 0,
+        }
+        for p in products
+    ], ensure_ascii=False)
+
+    try:
+        result = await generate_quotation_items(data.prompt, catalog_json)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error al consultar IA: {str(e)}")
+
+    return {
+        "items": result.get("items", []),
+        "condiciones_pago": result.get("condiciones_pago", data.condiciones_pago or "30 días"),
+        "condiciones_entrega": result.get("condiciones_entrega", data.condiciones_entrega or ""),
+        "condiciones_garantia": result.get("condiciones_garantia", data.condiciones_garantia or "1 año"),
+        "observaciones": result.get("observaciones", ""),
+    }
+
+
 @router.get("/catalog-check")
 def catalog_check(db: Session = Depends(get_db)):
     """Verifica qué ve DeepSeek del catálogo de productos."""
@@ -879,7 +920,7 @@ def delete_quotation(quote_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/{quote_id}/status")
 def update_status(quote_id: int, estado: str, db: Session = Depends(get_db)):
-    allowed = {"borrador", "enviada"}
+    allowed = {"borrador", "enviada", "aprobada", "rechazada"}
     if estado not in allowed:
         raise HTTPException(status_code=400, detail=f"Estado inválido. Opciones: {allowed}")
     quote = db.query(Quotation).filter(Quotation.id == quote_id).first()

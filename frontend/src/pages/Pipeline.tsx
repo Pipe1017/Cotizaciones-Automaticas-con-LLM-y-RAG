@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
-  getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
+  getCompanies, getBusinessLines, createQuotation, getQuotation,
   getQuotationItems, editQuotation, newQuotationVersion,
   uploadOpportunityExcel, uploadOpportunityPdf, updateQuotationStatus,
+  previewIa,
 } from '../lib/api'
 import { useState, useRef } from 'react'
 import {
@@ -14,11 +15,11 @@ import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
 
-const ETAPAS = ['In Progress', 'Won', 'Lost', 'No Bid', 'Cancelled by Client']
+const ETAPAS = ['En Proceso', 'Enviada', 'Ganada', 'Perdida', 'Cancelada por Cliente']
 
 const ETAPA_VARIANT: Record<string, any> = {
-  'In Progress': 'blue', Won: 'green', Lost: 'red',
-  'No Bid': 'gray', 'Cancelled by Client': 'amber',
+  'En Proceso': 'blue', 'Enviada': 'amber', 'Ganada': 'green',
+  'Perdida': 'red', 'Cancelada por Cliente': 'gray',
 }
 
 const PCTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -300,18 +301,70 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
   )
 }
 
-// ── AI generator panel ─────────────────────────────────────────
+// ── AI generator panel — preview antes de guardar ──────────────
+interface AIPreview {
+  items: any[]
+  condiciones_pago: string
+  condiciones_entrega: string
+  condiciones_garantia: string
+  observaciones: string
+}
+
 function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) {
   const qc = useQueryClient()
   const [prompt, setPrompt] = useState('')
   const [ciudad, setCiudad] = useState('med')
   const [contacto, setContacto] = useState(opp.asesor || '')
+  const [preview, setPreview] = useState<AIPreview | null>(null)
+  const [items, setItems] = useState<any[]>([])
   const [pagos, setPagos] = useState('30 días')
-  const [entrega, setEntrega] = useState('')
   const [garantia, setGarantia] = useState('1 año')
 
-  const generate = useMutation({
-    mutationFn: generateQuotation,
+  const fetchPreview = useMutation({
+    mutationFn: () => previewIa({
+      prompt,
+      business_line_id: opp.business_line_id || 1,
+      condiciones_pago: pagos,
+      condiciones_garantia: garantia,
+    }),
+    onSuccess: (data: AIPreview) => {
+      setPreview(data)
+      setItems(data.items.map((it: any) => ({
+        referencia_usa: it.referencia_usa || '',
+        descripcion: it.descripcion || '',
+        referencia_cod_proveedor: it.referencia_cod_proveedor || '',
+        marca: it.marca || 'HOPPECKE',
+        cantidad: String(it.cantidad ?? 1),
+        precio_unitario_usd: String(it.precio_unitario_usd ?? 0),
+      })))
+      setPagos(data.condiciones_pago || pagos)
+      setGarantia(data.condiciones_garantia || garantia)
+    },
+  })
+
+  const save = useMutation({
+    mutationFn: () => createQuotation({
+      opportunity_id: opp.id,
+      company_id: opp.company_id || undefined,
+      business_line_id: opp.business_line_id || 1,
+      ciudad_cotizacion: ciudad,
+      contacto_nombre: contacto || undefined,
+      asesor: opp.asesor || 'Aura María Gallego',
+      condiciones_pago: pagos,
+      condiciones_garantia: garantia,
+      condiciones_entrega: preview?.condiciones_entrega || '',
+      observaciones: preview?.observaciones || '',
+      landed_pct: opp.landed_pct ?? 0,
+      margen_pct: opp.margen_pct ?? 0,
+      items: items.map(it => ({
+        referencia_usa: it.referencia_usa || undefined,
+        descripcion: it.descripcion,
+        referencia_cod_proveedor: it.referencia_cod_proveedor || undefined,
+        marca: it.marca,
+        cantidad: parseFloat(it.cantidad) || 1,
+        precio_unitario_usd: parseFloat(it.precio_unitario_usd) || 0,
+      })),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['opportunities'] })
       qc.invalidateQueries({ queryKey: ['quotations'] })
@@ -319,75 +372,118 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
     },
   })
 
-  const handleGenerate = () => {
-    if (!prompt.trim()) return
-    generate.mutate({
-      prompt,
-      opportunity_id: opp.id,
-      company_id: opp.company_id || undefined,
-      business_line_id: opp.business_line_id || 1,
-      ciudad_cotizacion: ciudad,
-      contacto_nombre: contacto || undefined,
-      asesor: opp.asesor || 'Aura María Gallego',
-      condiciones_pago: pagos || undefined,
-      condiciones_entrega: entrega || undefined,
-      condiciones_garantia: garantia || undefined,
-      landed_pct: opp.landed_pct ?? 0,
-      margen_pct: opp.margen_pct ?? 0,
-    })
-  }
+  const updateItem = (idx: number, field: string, val: string) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it))
 
-  const multiplier = (1 + (opp.landed_pct || 0) / 100) * (1 + (opp.margen_pct || 0) / 100)
-  const hasAdjustment = multiplier > 1.001
+  const subtotal = items.reduce((s, it) =>
+    s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario_usd) || 0), 0)
 
-  return (
-    <div className="space-y-3">
-      {hasAdjustment && (
-        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          <span className="font-semibold">Costeo activo:</span>
-          <span>Landed {opp.landed_pct}% + Margen {opp.margen_pct}% → ×{multiplier.toFixed(3)}</span>
-          <span className="text-amber-500">— precios del catálogo ya incluyen este ajuste</span>
+  // Vista 1: formulario de prompt
+  if (!preview) {
+    return (
+      <div className="space-y-3">
+        <textarea rows={3} value={prompt} onChange={e => setPrompt(e.target.value)}
+          placeholder="Describe el requerimiento: voltaje, capacidad, conectores, aplicación..."
+          className="w-full input-base resize-none text-sm" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div>
+            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Ciudad</label>
+            <select value={ciudad} onChange={e => setCiudad(e.target.value)} className="input-base w-full text-sm">
+              {CIUDADES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Contacto</label>
+            <input value={contacto} onChange={e => setContacto(e.target.value)} className="input-base w-full text-sm" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
+            <input value={pagos} onChange={e => setPagos(e.target.value)} className="input-base w-full text-sm" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Garantía</label>
+            <input value={garantia} onChange={e => setGarantia(e.target.value)} className="input-base w-full text-sm" />
+          </div>
         </div>
-      )}
-      <textarea rows={2} value={prompt} onChange={e => setPrompt(e.target.value)}
-        placeholder='Describe el requerimiento: voltaje, capacidad, conectores, condiciones...'
-        className="w-full input-base resize-none text-sm" />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Ciudad</label>
-          <select value={ciudad} onChange={e => setCiudad(e.target.value)} className="input-base w-full text-sm">
-            {CIUDADES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-          </select>
+        <div className="flex items-center gap-3">
+          <button onClick={() => fetchPreview.mutate()} disabled={fetchPreview.isPending || !prompt.trim()}
+            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
+            <Sparkles size={14} />
+            {fetchPreview.isPending ? 'Consultando IA...' : 'Previsualizar con IA'}
+          </button>
+          {fetchPreview.isPending && (
+            <p className="text-xs text-gray-400 animate-pulse">Analizando catálogo y generando propuesta...</p>
+          )}
         </div>
-        <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Contacto</label>
-          <input value={contacto} onChange={e => setContacto(e.target.value)} className="input-base w-full text-sm" />
-        </div>
-        <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
-          <input value={pagos} onChange={e => setPagos(e.target.value)} className="input-base w-full text-sm" />
-        </div>
-        <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Garantía</label>
-          <input value={garantia} onChange={e => setGarantia(e.target.value)} className="input-base w-full text-sm" />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button onClick={handleGenerate} disabled={generate.isPending || !prompt.trim()}
-          className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-          <Sparkles size={14} />
-          {generate.isPending ? 'Generando con IA...' : 'Generar Cotización'}
-        </button>
-        {generate.isPending && (
-          <p className="text-xs text-gray-400 animate-pulse">Consultando catálogo y generando propuesta...</p>
+        {fetchPreview.isError && (
+          <p className="text-sm text-red-500">Error: {(fetchPreview.error as any)?.response?.data?.detail || 'Error desconocido'}</p>
         )}
       </div>
+    )
+  }
 
-      {generate.isError && (
-        <p className="text-sm text-red-500">Error: {(generate.error as any)?.response?.data?.detail || 'Error desconocido'}</p>
+  // Vista 2: preview editable
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-xs text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2">
+        <Sparkles size={13} />
+        <span className="font-semibold">Propuesta generada por IA</span>
+        <span className="text-brand-500">— revisa y edita antes de guardar</span>
+        <button onClick={() => setPreview(null)} className="ml-auto text-brand-400 hover:text-brand-600">
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-100">
+            <tr>
+              {['Ref. USA', 'Descripción *', 'Cód. SAP', 'Marca', 'Cant.', 'P. Unit. USD', ''].map(h =>
+                <th key={h} className="px-2 py-1.5 text-left font-semibold text-gray-500">{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, idx) => (
+              <tr key={idx} className="border-t border-gray-100">
+                <td className="px-1 py-1"><input value={it.referencia_usa} onChange={e => updateItem(idx, 'referencia_usa', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
+                <td className="px-1 py-1"><input value={it.descripcion} onChange={e => updateItem(idx, 'descripcion', e.target.value)} className="w-52 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
+                <td className="px-1 py-1"><input value={it.referencia_cod_proveedor} onChange={e => updateItem(idx, 'referencia_cod_proveedor', e.target.value)} className="w-20 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
+                <td className="px-1 py-1"><input value={it.marca} onChange={e => updateItem(idx, 'marca', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs" /></td>
+                <td className="px-1 py-1"><input type="number" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                <td className="px-1 py-1"><input type="number" value={it.precio_unitario_usd} onChange={e => updateItem(idx, 'precio_unitario_usd', e.target.value)} className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td>
+                <td className="px-1 py-1">
+                  {items.length > 1 && (
+                    <button onClick={() => setItems(p => p.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={13} /></button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: 'HOPPECKE', cantidad: '1', precio_unitario_usd: '0' }])}
+        className="text-xs text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1">
+        <Plus size={12} /> Agregar ítem
+      </button>
+
+      <div className="flex justify-end gap-5 text-xs font-medium text-gray-600">
+        <span>Subtotal: <strong>${subtotal.toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
+        <span>IVA 19%: <strong>${(subtotal * 0.19).toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
+        <span className="text-emerald-700">Total: <strong>${(subtotal * 1.19).toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
+      </div>
+
+      {save.isError && (
+        <p className="text-sm text-red-500">{(save.error as any)?.response?.data?.detail || 'Error al guardar'}</p>
       )}
+
+      <div className="flex gap-3">
+        <button onClick={() => save.mutate()} disabled={save.isPending || items.some(it => !it.descripcion)}
+          className="btn-primary text-sm disabled:opacity-50">
+          {save.isPending ? 'Guardando...' : 'Guardar Cotización'}
+        </button>
+        <button onClick={() => setPreview(null)} className="btn-ghost text-sm">Volver a editar prompt</button>
+      </div>
     </div>
   )
 }
@@ -751,10 +847,15 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
                 value={opp.quotation_estado || 'borrador'}
                 onChange={e => updateQuotationStatus(opp.quotation_id, e.target.value).then(() => qc.invalidateQueries({ queryKey: ['opportunities'] }))}
                 className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 cursor-pointer w-fit ${
-                  opp.quotation_estado === 'enviada' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                  opp.quotation_estado === 'aprobada'  ? 'bg-green-100 text-green-700'
+                  : opp.quotation_estado === 'enviada'   ? 'bg-blue-100 text-blue-700'
+                  : opp.quotation_estado === 'rechazada' ? 'bg-red-100 text-red-600'
+                  : 'bg-gray-100 text-gray-500'
                 }`}>
-                <option value="borrador">borrador</option>
-                <option value="enviada">enviada</option>
+                <option value="borrador">Borrador</option>
+                <option value="enviada">Enviada</option>
+                <option value="aprobada">Aprobada</option>
+                <option value="rechazada">Rechazada</option>
               </select>
             </div>
           ) : (opp.file_manual_excel || opp.file_manual_pdf) ? (
@@ -803,7 +904,7 @@ const ASESORES = ['Aura María Gallego', 'Juan David Giraldo', 'Alejandro Rendó
 
 const EMPTY_OPP = {
   company_id: '', business_line_id: '', titulo: '', descripcion: '',
-  valor_usd: '', etapa: 'In Progress', prob_go: 50, prob_get: 50,
+  valor_usd: '', etapa: 'En Proceso', prob_go: 50, prob_get: 50,
   asesor: '', apoyo_ra: '', observaciones: '',
   fecha_oportunidad: '', landed_pct: '', margen_pct: '',
 }
@@ -981,7 +1082,7 @@ export default function Pipeline() {
     setForm({
       company_id: o.company_id || '', business_line_id: o.business_line_id || '',
       titulo: o.titulo, descripcion: o.descripcion || '',
-      valor_usd: o.valor_usd || '', etapa: o.etapa || 'In Progress',
+      valor_usd: o.valor_usd || '', etapa: o.etapa || 'En Proceso',
       prob_go: o.prob_go ?? 50, prob_get: o.prob_get ?? 50, asesor: o.asesor || '',
       apoyo_ra: o.apoyo_ra || '', observaciones: o.observaciones || '',
       fecha_oportunidad: o.fecha_oportunidad || '',
@@ -990,7 +1091,7 @@ export default function Pipeline() {
     setEditId(o.id); setModal(true)
   }
 
-  const activeOpps   = (opps as any[]).filter(o => o.etapa === 'In Progress')
+  const activeOpps   = (opps as any[]).filter(o => o.etapa === 'En Proceso')
   const totalPipeline = activeOpps.reduce((s, o) => s + (Number(o.valor_usd) || 0), 0)
   const ponderado = activeOpps.reduce((s, o) => {
     const combined = probCombined(o.prob_go ?? 50, o.prob_get ?? 50)

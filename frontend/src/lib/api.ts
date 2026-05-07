@@ -93,6 +93,8 @@ export const getQuotationItems = (id: number) =>
   api.get(`/quotations/${id}/items`).then(r => r.data)
 export const generateQuotation = (data: object) =>
   api.post('/quotations/generate', data).then(r => r.data)
+export const previewIa = (data: object) =>
+  api.post('/quotations/preview-ia', data).then(r => r.data)
 export const createQuotation = (data: object) =>
   api.post('/quotations', data).then(r => r.data)
 export const updateQuotationStatus = (id: number, estado: string) =>

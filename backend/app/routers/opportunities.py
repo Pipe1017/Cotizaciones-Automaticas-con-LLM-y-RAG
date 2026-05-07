@@ -20,7 +20,7 @@ class OpportunityIn(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
     valor_usd: Optional[Decimal] = None
-    etapa: Optional[str] = "In Progress"
+    etapa: Optional[str] = "En Proceso"
     asesor: Optional[str] = None
     apoyo_ra: Optional[str] = None
     mes_esperado: Optional[date] = None
