@@ -49,7 +49,7 @@ class QuotationItemIn(BaseModel):
     referencia_usa: Optional[str] = None
     descripcion: str
     referencia_cod_proveedor: Optional[str] = None
-    marca: Optional[str] = "HOPPECKE"
+    marca: Optional[str] = None
     cantidad: Decimal
     precio_unitario_usd: Decimal
 
@@ -362,7 +362,7 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
                 referencia_usa=item.get("referencia_usa"),
                 descripcion=item["descripcion"],
                 referencia_cod_proveedor=item.get("referencia_cod_proveedor"),
-                marca=item.get("marca", "HOPPECKE"),
+                marca=item.get("marca") or None,
                 cantidad=item["cantidad"],
                 precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
                 precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
@@ -726,7 +726,7 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
             referencia_usa=item.get("referencia_usa"),
             descripcion=item["descripcion"],
             referencia_cod_proveedor=item.get("referencia_cod_proveedor"),
-            marca=item.get("marca", "HOPPECKE"),
+            marca=item.get("marca") or None,
             cantidad=item["cantidad"],
             precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
@@ -863,7 +863,7 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
             referencia_usa=item.get("referencia_usa"),
             descripcion=item["descripcion"],
             referencia_cod_proveedor=item.get("referencia_cod_proveedor"),
-            marca=item.get("marca", "HOPPECKE"),
+            marca=item.get("marca") or None,
             cantidad=item["cantidad"],
             precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),

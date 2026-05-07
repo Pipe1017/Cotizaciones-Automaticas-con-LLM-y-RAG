@@ -224,7 +224,7 @@ def generate_excel(data: dict) -> bytes:
         ws.cell(row=row, column=3, value=item.get("referencia_usa", ""))
         ws.cell(row=row, column=4, value=item.get("descripcion", ""))
         ws.cell(row=row, column=5, value=item.get("referencia_cod_proveedor", ""))
-        ws.cell(row=row, column=6, value=item.get("marca", "HOPPECKE"))
+        ws.cell(row=row, column=6, value=item.get("marca") or "")
         ws.cell(row=row, column=7, value=float(item.get("cantidad", 0)))
         _money(ws, row, 8, float(item.get("precio_unitario_usd", 0)))
         _money(ws, row, 9, float(item.get("precio_total_usd", 0)))

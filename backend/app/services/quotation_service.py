@@ -239,7 +239,7 @@ class QuotationService:
                     referencia_usa=item.get("referencia_usa"),
                     descripcion=item.get("descripcion", ""),
                     referencia_cod_proveedor=item.get("referencia_cod_proveedor"),
-                    marca=item.get("marca", "HOPPECKE"),
+                    marca=item.get("marca") or None,
                     cantidad=Decimal(str(item.get("cantidad", 1))),
                     precio_unitario_usd=Decimal(str(item.get("precio_unitario_usd", 0))),
                     precio_total_usd=Decimal(str(item.get("precio_total_usd", 0))),

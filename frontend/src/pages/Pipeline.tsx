@@ -45,7 +45,7 @@ const toFormItems = (items: any[]): QItem[] =>
     referencia_usa: it.referencia_usa || '',
     descripcion: it.descripcion || '',
     referencia_cod_proveedor: it.referencia_cod_proveedor || '',
-    marca: it.marca || 'HOPPECKE',
+    marca: it.marca || '',
     cantidad: String(it.cantidad),
     precio_unitario_usd: String(it.precio_unitario_usd),
   }))
@@ -143,7 +143,7 @@ function QuoteEditForm({
         </table>
       </div>
 
-      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: 'HOPPECKE', cantidad: '1', precio_unitario_usd: '0' }])}
+      <button onClick={() => setItems(p => [...p, { referencia_usa: '', descripcion: '', referencia_cod_proveedor: '', marca: '', cantidad: '1', precio_unitario_usd: '0' }])}
         className="text-xs text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1">
         <Plus size={12} /> Agregar ítem
       </button>
@@ -597,7 +597,7 @@ interface ManualItem {
 }
 const EMPTY_ITEM: ManualItem = {
   referencia_usa: '', descripcion: '', referencia_cod_proveedor: '',
-  marca: 'HOPPECKE', cantidad: '1', precio_unitario_usd: '0',
+  marca: '', cantidad: '1', precio_unitario_usd: '0',
 }
 
 function ManualQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) {
@@ -893,11 +893,10 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
   return (
     <>
       <tr
-        className="hover:bg-gray-50 transition-colors cursor-pointer group"
+        className={`transition-colors cursor-pointer group ${expanded ? 'bg-brand-50/40' : 'hover:bg-slate-50 even:bg-slate-50/60'}`}
         onClick={() => setExpanded(e => !e)}
       >
         <td className="px-3 py-3">
-          {/* # propuesta */}
           {opp.numero_oportunidad ? (
             <span className="font-mono text-[10px] text-brand-600 font-semibold whitespace-nowrap">
               {opp.numero_oportunidad}
@@ -906,18 +905,18 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
             <span className="text-gray-300 text-xs">—</span>
           )}
         </td>
-        <td className="px-3 py-3 text-gray-400 text-xs whitespace-nowrap">
+        <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">
           {opp.fecha_oportunidad
             ? new Date(opp.fecha_oportunidad + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })
             : '—'}
         </td>
-        <td className="px-3 py-3 font-medium text-gray-900 text-sm max-w-[140px] truncate">
+        <td className="px-3 py-3 font-semibold text-slate-800 text-sm max-w-[140px] truncate">
           {coName(opp.company_id)}
         </td>
         <td className="px-3 py-3 max-w-[180px]">
-          <p className="font-medium text-gray-800 truncate text-sm">{opp.titulo}</p>
+          <p className="text-slate-700 truncate text-sm">{opp.titulo}</p>
         </td>
-        <td className="px-3 py-3 text-xs text-gray-500 max-w-[120px] truncate">
+        <td className="px-3 py-3 text-xs text-slate-500 max-w-[120px] truncate">
           {blName(opp.business_line_id)}
         </td>
         <td className="px-3 py-3 whitespace-nowrap">
@@ -935,36 +934,34 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
         </td>
         <td className="px-3 py-3 whitespace-nowrap">
           {opp.quotation_id ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
               <FileText size={10} /> {opp.numero_oportunidad || `#${opp.quotation_id}`}
             </span>
           ) : (opp.file_manual_excel || opp.file_manual_pdf) ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
               <Upload size={10} /> Archivo
             </span>
           ) : (
-            <span className="text-xs text-gray-300">—</span>
+            <span className="text-xs text-slate-300">—</span>
           )}
         </td>
-        <td className="px-3 py-3 text-gray-500 text-xs">{opp.asesor || '—'}</td>
-        <td className="px-3 py-3 w-8">
-          {expanded
-            ? <ChevronUp size={14} className="text-brand-400" />
-            : <ChevronDown size={14} className="text-gray-300 group-hover:text-gray-400" />}
-        </td>
-        <td className="px-3 py-3">
-          <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={e => e.stopPropagation()}>
-            <button onClick={() => onEdit(opp)} className="btn-ghost p-1.5"><Pencil size={13} /></button>
-            <button onClick={() => onDelete(opp)}
-              className="btn-ghost p-1.5 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+        <td className="px-3 py-3 text-slate-500 text-xs whitespace-nowrap">{opp.asesor || '—'}</td>
+        {/* Acciones — sticky a la derecha */}
+        <td className="sticky right-0 px-3 py-3 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100"
+          onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            {expanded
+              ? <ChevronUp size={14} className="text-brand-400 mr-1" />
+              : <ChevronDown size={14} className="text-slate-300 group-hover:text-slate-400 mr-1" />}
+            <button onClick={() => onEdit(opp)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"><Pencil size={13} /></button>
+            <button onClick={() => onDelete(opp)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={13} /></button>
           </div>
         </td>
       </tr>
 
       {expanded && (
         <tr>
-          <td colSpan={12} className="border-b border-gray-100 bg-slate-50/70 p-0 max-w-0">
+          <td colSpan={11} className="border-b border-slate-200 bg-white p-0 max-w-0">
             {/* max-w-0 en el td evita que el contenido expanda la tabla horizontalmente */}
             <div className="w-[min(900px,calc(100vw-280px))] px-8 py-5 overflow-hidden" onClick={e => e.stopPropagation()}>
               {opp.quotation_id ? (
@@ -1235,14 +1232,15 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
           <table className="min-w-max w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-slate-800 border-b border-slate-700">
               <tr>
-                {['#', 'Fecha', 'Cliente', 'Propuesta', 'Línea', 'Etapa', 'Prob.', 'Valor USD', 'Cotización', 'Asesor', '', ''].map((h, i) => (
-                  <th key={i} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                {['#', 'Fecha', 'Cliente', 'Propuesta', 'Línea', 'Etapa', 'Prob.', 'Valor USD', 'Cotización', 'Asesor'].map((h, i) => (
+                  <th key={i} className="px-3 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
+                <th className="sticky right-0 bg-slate-800 px-3 py-3 text-left text-[11px] font-semibold text-slate-300 uppercase tracking-wide w-16" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {(opps as any[]).map((o: any) => (
                 <OppRow
                   key={o.id}

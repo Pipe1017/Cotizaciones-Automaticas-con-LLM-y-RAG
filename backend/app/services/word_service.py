@@ -340,7 +340,7 @@ def generate_cotizacion(data: dict) -> bytes:
             item.get("referencia_usa") or "—",
             item.get("descripcion", ""),
             item.get("referencia_cod_proveedor") or "—",
-            item.get("marca") or "HOPPECKE",
+            item.get("marca") or "—",
             str(item.get("cantidad", 1)),
             f"${float(item.get('precio_unitario_usd', 0)):,.2f}",
             f"${float(item.get('precio_total_usd', 0)):,.2f}",

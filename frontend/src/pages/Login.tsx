@@ -32,31 +32,72 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden">
+    <div className="min-h-screen flex">
 
-          {/* Header navy con logo */}
-          <div className="bg-brand-900 px-8 pt-8 pb-6 flex flex-col items-center border-b-4 border-accent-500">
-            <img src={opexLogo} alt="OPEX SAS" className="h-12 object-contain brightness-0 invert mb-3" />
-            <p className="text-accent-400 text-xs font-semibold tracking-widest uppercase">Sistema de Gestión Comercial</p>
+      {/* Panel izquierdo — marca */}
+      <div className="hidden md:flex flex-col justify-between w-[420px] shrink-0 bg-brand-900 p-10">
+        <div className="flex items-center gap-3">
+          <div className="bg-white rounded-lg p-2">
+            <img src={opexLogo} alt="OPEX SAS" className="h-8 object-contain" />
+          </div>
+          <div>
+            <p className="text-white font-bold text-sm leading-tight">OPEX SAS</p>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest">Colombia</p>
+          </div>
+        </div>
+
+        <div>
+          <h1 className="text-white text-3xl font-bold leading-tight mb-3">
+            Sistema de Gestión<br />Comercial
+          </h1>
+          <p className="text-white/50 text-sm leading-relaxed">
+            Pipeline de oportunidades, cotizaciones automáticas con IA y seguimiento de clientes.
+          </p>
+        </div>
+
+        <div className="border-t border-white/10 pt-6">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+            <span className="text-white/60 text-xs">Generación de cotizaciones con IA</span>
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+            <span className="text-white/60 text-xs">Dashboard de pipeline en tiempo real</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+            <span className="text-white/60 text-xs">Gestión multi-línea de negocio</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Panel derecho — formulario */}
+      <div className="flex-1 flex items-center justify-center bg-slate-50 p-8">
+        <div className="w-full max-w-sm">
+
+          {/* Logo mobile */}
+          <div className="flex items-center gap-3 mb-8 md:hidden">
+            <div className="bg-brand-900 rounded-lg p-2">
+              <img src={opexLogo} alt="OPEX SAS" className="h-7 object-contain brightness-0 invert" />
+            </div>
+            <p className="font-bold text-slate-800">OPEX SAS</p>
           </div>
 
-          <div className="px-8 py-7">
-            <h1 className="text-base font-bold text-slate-800 mb-5">Iniciar sesión</h1>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Iniciar sesión</h2>
+          <p className="text-slate-500 text-sm mb-8">Ingresa tus credenciales para continuar</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4 mb-0">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">
                 Usuario
               </label>
               <div className="relative">
-                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 border border-surface-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-sm"
                   placeholder="tu_usuario"
                   required
                   autoFocus
@@ -66,16 +107,16 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 border border-surface-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-sm"
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
@@ -84,24 +125,26 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-red-500 text-xs text-center bg-red-50 rounded-lg py-2">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <p className="text-red-600 text-sm font-medium">{error}</p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-brand-900 hover:bg-brand-700 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-brand-900 hover:bg-brand-700 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
             >
               {loading ? 'Verificando…' : 'Ingresar'}
             </button>
           </form>
-          </div>
-        </div>
 
-        <p className="text-center text-white/40 text-xs mt-5">
-          OPEX SAS · CRM v1.2
-        </p>
+          <p className="text-center text-slate-400 text-xs mt-8">
+            OPEX SAS · CRM v1.2
+          </p>
+        </div>
       </div>
+
     </div>
   )
 }
