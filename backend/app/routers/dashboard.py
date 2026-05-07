@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func
 from typing import Optional
 
 from app.database import get_db
@@ -14,15 +14,6 @@ router = APIRouter()
 
 @router.get("/kpis")
 def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_db)):
-    """
-    Dashboard KPIs. Optional filter by business_line_id.
-    Returns pipeline by business line, quote counts, lead funnel, and totals.
-    """
-    # Base filter for opportunities
-    opp_filter = []
-    if business_line_id:
-        opp_filter.append(Opportunity.business_line_id == business_line_id)
-
     # Pipeline por línea de negocio
     pipeline_q = (
         db.query(
@@ -30,16 +21,14 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
             BusinessLine.nombre,
             func.count(Opportunity.id).label("oportunidades"),
             func.coalesce(func.sum(Opportunity.valor_usd), 0).label("valor_total_usd"),
-            # comprometido ponderado: valor × prob_go × prob_get / 10000
             func.coalesce(
                 func.sum(
-                    Opportunity.valor_usd
-                    * Opportunity.prob_go
-                    * Opportunity.prob_get
-                    / 10000
-                ),
-                0,
+                    Opportunity.valor_usd * Opportunity.prob_go * Opportunity.prob_get / 10000
+                ), 0,
             ).label("comprometido_usd"),
+            func.coalesce(
+                func.sum(Opportunity.valor_usd * Opportunity.margen_pct / 100), 0
+            ).label("margen_usd"),
         )
         .join(Opportunity, Opportunity.business_line_id == BusinessLine.id, isouter=True)
         .group_by(BusinessLine.id, BusinessLine.nombre)
@@ -53,7 +42,7 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
 
     pipeline = pipeline_q.all()
 
-    # Totals (scoped to filter if any)
+    # Totals
     opp_base = db.query(Opportunity)
     if business_line_id:
         opp_base = opp_base.filter(Opportunity.business_line_id == business_line_id)
@@ -61,24 +50,36 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
     total_pipeline = float(
         opp_base.with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0)).scalar() or 0
     )
-    # Comprometido = pipeline ponderado (valor × prob_go × prob_get / 10000)
-    opps_for_pond = opp_base.with_entities(
-        Opportunity.valor_usd, Opportunity.prob_go, Opportunity.prob_get
+
+    opps_all = opp_base.with_entities(
+        Opportunity.valor_usd, Opportunity.prob_go, Opportunity.prob_get,
+        Opportunity.margen_pct, Opportunity.etapa,
     ).all()
+
     comprometido = sum(
         float(o.valor_usd or 0) * (o.prob_go or 50) * (o.prob_get or 50) / 10000
-        for o in opps_for_pond
+        for o in opps_all
     )
+    # Margen esperado = valor × margen% para todas las oportunidades activas
+    margen_esperado = sum(
+        float(o.valor_usd or 0) * float(o.margen_pct or 0) / 100
+        for o in opps_all
+    )
+    # Margen ganado = solo oportunidades con etapa 'Ganada'
+    margen_ganado = sum(
+        float(o.valor_usd or 0) * float(o.margen_pct or 0) / 100
+        for o in opps_all
+        if (o.etapa or '') == 'Ganada'
+    )
+
     total_opps = opp_base.count()
 
-    # Oportunidades por etapa (funnel)
     etapas_q = (
         opp_base.with_entities(Opportunity.etapa, func.count(Opportunity.id).label("count"))
         .group_by(Opportunity.etapa)
         .all()
     )
 
-    # Cotizaciones por estado — solo la versión activa (vinculada a la oportunidad)
     active_quote_ids = (
         db.query(Opportunity.quotation_id)
         .filter(Opportunity.quotation_id.isnot(None))
@@ -86,14 +87,8 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
     quotes_q = db.query(Quotation).filter(Quotation.id.in_(active_quote_ids))
     if business_line_id:
         quotes_q = quotes_q.filter(Quotation.business_line_id == business_line_id)
-    quotes_by_estado = (
-        quotes_q.with_entities(Quotation.estado, func.count(Quotation.id).label("count"))
-        .group_by(Quotation.estado)
-        .all()
-    )
     total_quotes = quotes_q.count()
 
-    # Lead funnel (not filtered by BL — leads don't have BL yet)
     leads_by_stage = (
         db.query(Lead.etapa, func.count(Lead.id).label("count"))
         .group_by(Lead.etapa)
@@ -108,14 +103,16 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
                 "oportunidades": row.oportunidades,
                 "valor_total_usd": float(row.valor_total_usd),
                 "comprometido_usd": float(row.comprometido_usd),
+                "margen_usd": float(row.margen_usd),
             }
             for row in pipeline
         ],
         "total_pipeline_usd": total_pipeline,
         "comprometido_usd": comprometido,
+        "margen_esperado_usd": margen_esperado,
+        "margen_ganado_usd": margen_ganado,
         "total_oportunidades": total_opps,
         "total_cotizaciones": total_quotes,
-        "cotizaciones_por_estado": {row.estado: row.count for row in quotes_by_estado},
         "oportunidades_por_etapa": {(row.etapa or "Sin etapa"): row.count for row in etapas_q},
         "leads_por_etapa": {row.etapa: row.count for row in leads_by_stage},
         "total_leads": db.query(func.count(Lead.id)).scalar(),

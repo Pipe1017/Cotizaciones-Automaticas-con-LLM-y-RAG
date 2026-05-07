@@ -218,26 +218,33 @@ function AITrace({ quote }: { quote: any }) {
   if (!quote?.ai_prompt) return null
 
   return (
-    <div className="pt-1 border-t border-gray-100">
+    <div className="pt-2 border-t border-slate-100">
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 text-[11px] text-brand-400 hover:text-brand-600 transition-colors">
         <Cpu size={11} />
         <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-        Generado con IA — ver trazabilidad
+        Trazabilidad IA
       </button>
 
       {open && (
-        <div className="mt-2 space-y-2 text-xs">
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Prompt enviado</p>
-            <p className="text-slate-700 whitespace-pre-wrap">{quote.ai_prompt}</p>
-          </div>
+        <div className="mt-2 space-y-2">
           {quote.ai_reasoning && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wide mb-1">Razonamiento del modelo</p>
-              <p className="text-purple-800 whitespace-pre-wrap text-[11px] leading-relaxed">{quote.ai_reasoning}</p>
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wide mb-1.5">Razonamiento del modelo</p>
+              <div className="overflow-y-auto max-h-32">
+                <p className="text-purple-800 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{quote.ai_reasoning}</p>
+              </div>
             </div>
           )}
+          <details className="group">
+            <summary className="text-[10px] text-slate-400 cursor-pointer hover:text-slate-600 select-none list-none flex items-center gap-1">
+              <ChevronDown size={10} className="group-open:rotate-180 transition-transform" />
+              Ver prompt completo
+            </summary>
+            <div className="mt-1.5 bg-slate-50 border border-slate-100 rounded-lg p-3 overflow-y-auto max-h-40">
+              <p className="text-slate-600 text-[11px] font-mono break-words whitespace-pre-wrap leading-relaxed">{quote.ai_prompt}</p>
+            </div>
+          </details>
         </div>
       )}
     </div>
@@ -518,52 +525,66 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
   const hasAdjustment = multiplier > 1.001
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {hasAdjustment && (
         <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
           <span className="font-semibold">Costeo activo:</span>
           <span>Landed {opp.landed_pct}% + Margen {opp.margen_pct}% → ×{multiplier.toFixed(3)}</span>
-          <span className="text-amber-500">— precios del catálogo ya incluyen este ajuste</span>
         </div>
       )}
-      <textarea rows={2} value={prompt} onChange={e => setPrompt(e.target.value)}
-        placeholder='Describe el requerimiento: voltaje, capacidad, conectores, condiciones...'
-        className="w-full input-base resize-none text-sm" />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      {/* Prompt — principal */}
+      <div>
+        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+          Prompt para la IA
+        </label>
+        <textarea rows={4} value={prompt} onChange={e => setPrompt(e.target.value)}
+          placeholder='Describe el requerimiento: equipos, voltajes, capacidades, cantidades, condiciones de instalación...'
+          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none bg-white shadow-sm" />
+      </div>
+
+      {/* Parámetros en fila compacta */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Ciudad</label>
-          <select value={ciudad} onChange={e => setCiudad(e.target.value)} className="input-base w-full text-sm">
+          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Ciudad</label>
+          <select value={ciudad} onChange={e => setCiudad(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
             {CIUDADES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Contacto</label>
-          <input value={contacto} onChange={e => setContacto(e.target.value)} className="input-base w-full text-sm" />
+          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Contacto</label>
+          <input value={contacto} onChange={e => setContacto(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
-          <input value={pagos} onChange={e => setPagos(e.target.value)} className="input-base w-full text-sm" />
+          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Cond. pago</label>
+          <input value={pagos} onChange={e => setPagos(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Garantía</label>
-          <input value={garantia} onChange={e => setGarantia(e.target.value)} className="input-base w-full text-sm" />
+          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Garantía</label>
+          <input value={garantia} onChange={e => setGarantia(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Acción */}
+      <div className="flex items-center gap-3 pt-1">
         <button onClick={handleGenerate} disabled={generate.isPending || !prompt.trim()}
-          className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-          <Cpu size={14} />
-          {generate.isPending ? 'Generando con IA...' : 'Generar Cotización'}
+          className="flex items-center gap-2 bg-brand-900 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 transition-colors shadow-sm">
+          <Cpu size={15} />
+          {generate.isPending ? 'Generando…' : 'Generar Cotización'}
         </button>
         {generate.isPending && (
-          <p className="text-xs text-gray-400 animate-pulse">Consultando catálogo y generando documentos...</p>
+          <p className="text-xs text-slate-400 animate-pulse">Consultando catálogo y generando documentos…</p>
         )}
       </div>
 
       {generate.isError && (
-        <p className="text-sm text-red-500">Error: {(generate.error as any)?.response?.data?.detail || 'Error desconocido'}</p>
+        <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
+          {(generate.error as any)?.response?.data?.detail || 'Error desconocido'}
+        </p>
       )}
     </div>
   )
@@ -952,8 +973,9 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
 
       {expanded && (
         <tr>
-          <td colSpan={12} className="border-b border-gray-100 bg-slate-50/70 p-0">
-            <div className="px-8 py-4" onClick={e => e.stopPropagation()}>
+          <td colSpan={12} className="border-b border-gray-100 bg-slate-50/70 p-0 max-w-0">
+            {/* max-w-0 en el td evita que el contenido expanda la tabla horizontalmente */}
+            <div className="w-[min(900px,calc(100vw-280px))] px-8 py-5 overflow-hidden" onClick={e => e.stopPropagation()}>
               {opp.quotation_id ? (
                 <QuotationInfo quotationId={opp.quotation_id} numero={opp.numero_oportunidad} opp={opp} />
               ) : (

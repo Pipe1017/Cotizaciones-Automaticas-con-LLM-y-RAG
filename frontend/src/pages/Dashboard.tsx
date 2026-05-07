@@ -3,14 +3,16 @@ import { useState } from 'react'
 import { getDashboardKpis, getLatestRates, getBusinessLines } from '../lib/api'
 import {
   TrendingUp, FileText, DollarSign, Target,
-  RefreshCw, Euro, Banknote, Calendar, ChevronRight,
+  RefreshCw, Euro, Banknote, Calendar, TrendingDown,
 } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n: number) =>
-  n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M`
-  : n >= 1_000   ? `$${(n / 1_000).toFixed(0)}K`
-  : `$${n.toFixed(0)}`
+// Redondea a decenas, sin decimales, sin abreviar salvo millones
+const fmt = (n: number) => {
+  const r = Math.round(n / 10) * 10
+  if (r >= 1_000_000) return `$${(r / 1_000_000).toFixed(1)}M`
+  return '$' + r.toLocaleString('en-US')
+}
 
 const BL_COLORS = ['#0f2560', '#4b60eb', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4']
 
@@ -69,11 +71,14 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
     queryFn: () => getLatestRates(),
   })
 
-  const totalPipeline = kpis?.total_pipeline_usd ?? 0
-  const comprometido  = kpis?.comprometido_usd ?? 0
-  const totalOpps     = kpis?.total_oportunidades ?? 0
-  const totalQuotes   = kpis?.total_cotizaciones ?? 0
+  const totalPipeline   = kpis?.total_pipeline_usd ?? 0
+  const comprometido    = kpis?.comprometido_usd ?? 0
+  const margenEsperado  = kpis?.margen_esperado_usd ?? 0
+  const margenGanado    = kpis?.margen_ganado_usd ?? 0
+  const totalOpps       = kpis?.total_oportunidades ?? 0
+  const totalQuotes     = kpis?.total_cotizaciones ?? 0
   const pct = totalPipeline > 0 ? Math.round(comprometido / totalPipeline * 100) : 0
+  const margenPct = totalPipeline > 0 ? Math.round(margenEsperado / totalPipeline * 100) : 0
 
   const pipelineRows = ((kpis?.pipeline ?? []) as any[])
     .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.bl_id))
@@ -144,16 +149,21 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
       ) : (
         <>
           {/* ── KPI Row ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <KPI label="Pipeline Total" value={fmt(totalPipeline)}
-              sub="USD acumulado en oportunidades" icon={DollarSign}
+              sub="Oportunidades activas" icon={DollarSign}
               color="bg-brand-900" accent={pct > 0 ? `${pct}% comprometido` : undefined} />
             <KPI label="Comprometido" value={fmt(comprometido)}
-              sub="Valor ponderado Go × Get" icon={Target} color="bg-emerald-600" />
+              sub="Go × Get ponderado" icon={Target} color="bg-emerald-600" />
+            <KPI label="Margen Esperado" value={fmt(margenEsperado)}
+              sub={margenPct > 0 ? `${margenPct}% del pipeline` : 'Configura % margen en oportunidades'}
+              icon={TrendingDown} color="bg-teal-600" />
+            <KPI label="Margen Ganado" value={fmt(margenGanado)}
+              sub="De oportunidades Ganadas" icon={TrendingUp} color="bg-amber-500" />
             <KPI label="Oportunidades" value={totalOpps}
-              sub="En pipeline activo" icon={TrendingUp} color="bg-amber-500" />
+              sub="En pipeline" icon={TrendingUp} color="bg-slate-600" />
             <KPI label="Cotizaciones" value={totalQuotes}
-              sub="Versiones activas vinculadas" icon={FileText} color="bg-violet-600" />
+              sub="Versiones activas" icon={FileText} color="bg-violet-600" />
           </div>
 
           {/* ── Tasas + Pipeline ── */}
@@ -251,13 +261,14 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
                     <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Opps</th>
                     <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Pipeline</th>
                     <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Comprometido</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Margen Esp.</th>
                     <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-36">Cobertura</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {pipelineRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-slate-300 text-sm">
+                      <td colSpan={6} className="px-5 py-10 text-center text-slate-300 text-sm">
                         Sin oportunidades registradas
                       </td>
                     </tr>
@@ -277,6 +288,9 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
                         </td>
                         <td className="px-5 py-3 text-right font-medium text-emerald-700">
                           {row.comprometido_usd > 0 ? fmt(row.comprometido_usd) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-right font-medium text-teal-700">
+                          {row.margen_usd > 0 ? fmt(row.margen_usd) : <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-5 py-3">
                           {row.valor_total_usd > 0 ? (
