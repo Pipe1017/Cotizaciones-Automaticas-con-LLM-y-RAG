@@ -834,6 +834,7 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
     new_quote = Quotation(
         numero_cotizacion=new_numero,
         fecha=date.today(),
+        opportunity_id=original.opportunity_id,
         company_id=original.company_id,
         business_line_id=original.business_line_id,
         ciudad_cotizacion=original.ciudad_cotizacion,

@@ -214,9 +214,11 @@ class QuotationService:
         # 5. Persist quotation with new number format
         asesor = getattr(data, 'asesor', None) or "Aura María Gallego"
         numero = self._next_number(ciudad, bl_id)
+        opp_id = getattr(data, 'opportunity_id', None)
         quote = Quotation(
             numero_cotizacion=numero,
             fecha=date.today(),
+            opportunity_id=opp_id,
             company_id=data.company_id,
             business_line_id=bl_id,
             ciudad_cotizacion=ciudad,
@@ -256,7 +258,6 @@ class QuotationService:
         # 6. Link to existing opportunity or auto-create a new one
         from app.models.opportunity import Opportunity
         from sqlalchemy import or_ as _or
-        opp_id = getattr(data, 'opportunity_id', None)
         if opp_id:
             existing_opp = self.db.query(Opportunity).filter(Opportunity.id == opp_id).first()
             if existing_opp:

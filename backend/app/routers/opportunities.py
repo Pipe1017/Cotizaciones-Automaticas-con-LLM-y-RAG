@@ -112,19 +112,19 @@ def update_opportunity(opp_id: int, data: OpportunityIn, db: Session = Depends(g
 
 @router.delete("/{opp_id}", status_code=204)
 def delete_opportunity(opp_id: int, db: Session = Depends(get_db)):
+    from app.models.quotation import Quotation
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
 
-    # Eliminar cotización asociada (los ítems se borran en cascada por FK)
+    # Romper referencia circular antes de borrar cotizaciones
     if opp.quotation_id:
-        from app.models.quotation import Quotation
-        quot = db.query(Quotation).filter(Quotation.id == opp.quotation_id).first()
-        if quot:
-            opp.quotation_id = None   # romper referencia circular
-            db.flush()
-            db.delete(quot)
-            db.flush()
+        opp.quotation_id = None
+        db.flush()
+
+    # Borrar TODAS las cotizaciones de esta oportunidad (incluyendo versiones anteriores)
+    db.query(Quotation).filter(Quotation.opportunity_id == opp_id).delete(synchronize_session=False)
+    db.flush()
 
     db.delete(opp)
     db.commit()
