@@ -66,8 +66,21 @@ def _ensure_admin_user():
         db.close()
 
 
+def _ensure_minio_buckets():
+    """Crea los buckets de MinIO si no existen."""
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        from app.services.minio_service import MinioService
+        MinioService().ensure_all_buckets()
+        log.info("MinIO buckets verificados/creados correctamente.")
+    except Exception as e:
+        log.warning("No se pudieron verificar los buckets de MinIO: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _ensure_minio_buckets()
     _ensure_admin_user()
     # Cron: revisa cada hora si toca hacer backup
     scheduler.add_job(_scheduled_backup, "cron", minute=0)

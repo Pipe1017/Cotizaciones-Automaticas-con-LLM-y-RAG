@@ -12,6 +12,18 @@ class MinioService:
             secure=settings.minio_secure,
         )
 
+    def ensure_bucket(self, bucket: str) -> None:
+        if not self.client.bucket_exists(bucket):
+            self.client.make_bucket(bucket)
+
+    def ensure_all_buckets(self) -> None:
+        for bucket in (
+            settings.minio_bucket_templates,
+            settings.minio_bucket_quotations,
+            settings.minio_bucket_exports,
+        ):
+            self.ensure_bucket(bucket)
+
     def download(self, object_path: str) -> bytes:
         """Download file from MinIO. object_path = 'bucket/path/file.xlsx'"""
         parts = object_path.split("/", 1)
@@ -22,7 +34,8 @@ class MinioService:
         return data
 
     def upload(self, bucket: str, object_name: str, data: bytes, content_type: str) -> str:
-        """Upload bytes to MinIO. Returns the full object path."""
+        """Upload bytes to MinIO. Creates bucket if it doesn't exist."""
+        self.ensure_bucket(bucket)
         self.client.put_object(
             bucket,
             object_name,
