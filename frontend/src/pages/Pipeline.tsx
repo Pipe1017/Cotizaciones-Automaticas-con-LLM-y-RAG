@@ -1105,7 +1105,7 @@ function OppModal({ open, onClose, editId, form, setForm, companies, businessLin
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export default function Pipeline() {
+export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
   const [filter, setFilter] = useState({ etapa: '', asesor: '', business_line_id: '' })
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<any>({ ...EMPTY_OPP })
@@ -1113,12 +1113,21 @@ export default function Pipeline() {
   const qc = useQueryClient()
 
   const params = Object.fromEntries(Object.entries(filter).filter(([, v]) => v))
-  const { data: opps = [], isLoading } = useQuery({
+  const { data: rawOpps = [], isLoading } = useQuery({
     queryKey: ['opportunities', params],
     queryFn: () => getOpportunities({ ...params, limit: 300 }),
   })
+  // Filtrar oportunidades al módulo activo
+  const opps = allowedBL?.length
+    ? (rawOpps as any[]).filter((o: any) => allowedBL.includes(o.business_line_id))
+    : rawOpps
+
   const { data: companies = [] } = useQuery({ queryKey: ['companies'], queryFn: () => getCompanies() })
-  const { data: businessLines = [] } = useQuery({ queryKey: ['business-lines'], queryFn: () => getBusinessLines() })
+  const { data: allBusinessLines = [] } = useQuery({ queryKey: ['business-lines'], queryFn: () => getBusinessLines() })
+  // Solo mostrar BLs del módulo activo en dropdowns
+  const businessLines = allowedBL?.length
+    ? (allBusinessLines as any[]).filter((bl: any) => allowedBL.includes(bl.id))
+    : allBusinessLines
 
   const save = useMutation({
     mutationFn: () => {
@@ -1141,7 +1150,12 @@ export default function Pipeline() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
   })
 
-  const openCreate = () => { setForm({ ...EMPTY_OPP }); setEditId(null); setModal(true) }
+  const openCreate = () => {
+    const defaultBL = allowedBL?.length === 1 ? String(allowedBL[0]) : ''
+    setForm({ ...EMPTY_OPP, business_line_id: defaultBL })
+    setEditId(null)
+    setModal(true)
+  }
   const openEdit = (o: any) => {
     setForm({
       company_id: o.company_id || '', business_line_id: o.business_line_id || '',

@@ -4,6 +4,7 @@ import ModuleSidebar from '../components/ModuleSidebar'
 import AgroDashboard from '../pages/agro/AgroDashboard'
 import Leads from '../pages/Leads'
 import Companies from '../pages/Companies'
+import Pipeline from '../pages/Pipeline'
 
 const CONFIG = {
   id: 'agro',
@@ -26,7 +27,7 @@ export default function AgroModule() {
           <Route index element={<AgroDashboard />} />
           <Route path="leads"    element={<Leads />} />
           <Route path="empresas" element={<Companies modulo="agro_proyectos" />} />
-          <Route path="pipeline" element={<AgroPipelinePlaceholder />} />
+          <Route path="pipeline" element={<Pipeline allowedBL={[4]} />} />
         </Routes>
       </main>
     </div>

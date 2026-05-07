@@ -14,7 +14,7 @@ import {
 const BL_COLORS = ['#4b60eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4']
 
 const ETAPA_ORDER = [
-  'Must Win', 'Plan Foco', 'Cotizacion', 'OC', 'Facturacion',
+  'En Proceso', 'Cotizando', 'Enviada', 'Ganada', 'Perdida', 'Cancelada por Cliente',
 ]
 
 const QUOTE_COLORS: Record<string, string> = {
@@ -77,13 +77,18 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function Dashboard() {
+export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
   const [activeBL, setActiveBL] = useState<number | null>(null)
 
-  const { data: bls = [] } = useQuery({
+  const { data: allBls = [] } = useQuery({
     queryKey: ['business-lines'],
     queryFn: () => getBusinessLines(),
   })
+
+  // Solo mostrar las BLs permitidas por el módulo activo
+  const bls = allowedBL?.length
+    ? (allBls as any[]).filter((bl: any) => allowedBL.includes(bl.id))
+    : allBls
 
   const { data: kpis, isLoading, refetch } = useQuery({
     queryKey: ['kpis', activeBL],
@@ -103,8 +108,10 @@ export default function Dashboard() {
   const totalLeads    = kpis?.total_leads ?? 0
   const pct = totalPipeline > 0 ? Math.round(comprometido / totalPipeline * 100) : 0
 
-  // Pipeline chart data — only BLs with opportunities
-  const pipelineData = (kpis?.pipeline ?? []).filter((r: any) => r.oportunidades > 0)
+  // Pipeline chart data — solo BLs del módulo con oportunidades
+  const pipelineData = (kpis?.pipeline ?? [])
+    .filter((r: any) => r.oportunidades > 0)
+    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.business_line_id))
 
   // Opportunity funnel
   const funnelData = ETAPA_ORDER
@@ -296,7 +303,10 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {(kpis?.pipeline ?? []).filter((r: any) => r.oportunidades > 0).map((row: any) => {
+                  {(kpis?.pipeline ?? [])
+                    .filter((r: any) => r.oportunidades > 0)
+                    .filter((r: any) => !allowedBL?.length || allowedBL.includes(r.business_line_id))
+                    .map((row: any) => {
                     const pct = row.valor_total_usd > 0
                       ? (row.comprometido_usd / row.valor_total_usd * 100)
                       : 0
