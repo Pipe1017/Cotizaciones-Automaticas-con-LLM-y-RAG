@@ -12,10 +12,20 @@ from app.models.engineering import QuotationService as QuotationServiceModel
 
 router = APIRouter()
 
+CLOSED_LOST = ('Perdida', 'Cancelada por Cliente')
+
 
 @router.get("/kpis")
 def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_db)):
-    # Pipeline por línea de negocio
+    # Base query (all opportunities)
+    opp_base = db.query(Opportunity)
+    if business_line_id:
+        opp_base = opp_base.filter(Opportunity.business_line_id == business_line_id)
+
+    # Active pipeline excludes lost/cancelled
+    active_base = opp_base.filter(~Opportunity.etapa.in_(CLOSED_LOST))
+
+    # Pipeline por línea de negocio (active only)
     pipeline_q = (
         db.query(
             BusinessLine.id.label("bl_id"),
@@ -32,6 +42,7 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
             ).label("margen_usd"),
         )
         .join(Opportunity, Opportunity.business_line_id == BusinessLine.id, isouter=True)
+        .filter((~Opportunity.etapa.in_(CLOSED_LOST)) | (Opportunity.id == None))
         .group_by(BusinessLine.id, BusinessLine.nombre)
         .order_by(BusinessLine.id)
     )
@@ -43,16 +54,11 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
 
     pipeline = pipeline_q.all()
 
-    # Totals
-    opp_base = db.query(Opportunity)
-    if business_line_id:
-        opp_base = opp_base.filter(Opportunity.business_line_id == business_line_id)
-
     total_pipeline = float(
-        opp_base.with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0)).scalar() or 0
+        active_base.with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0)).scalar() or 0
     )
 
-    opps_all = opp_base.with_entities(
+    opps_all = active_base.with_entities(
         Opportunity.valor_usd, Opportunity.prob_go, Opportunity.prob_get,
         Opportunity.margen_pct, Opportunity.etapa,
     ).all()
@@ -61,7 +67,7 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         float(o.valor_usd or 0) * (o.prob_go or 50) * (o.prob_get or 50) / 10000
         for o in opps_all
     )
-    # Margen esperado = valor × margen% para todas las oportunidades activas
+    # Margen esperado = valor × margen% para oportunidades activas (sin perdidas/canceladas)
     margen_esperado = sum(
         float(o.valor_usd or 0) * float(o.margen_pct or 0) / 100
         for o in opps_all
@@ -73,7 +79,14 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         if (o.etapa or '') == 'Ganada'
     )
 
-    total_opps = opp_base.count()
+    total_opps = active_base.count()
+
+    # Perdidas y canceladas (para mostrar separado en dashboard)
+    lost_base = opp_base.filter(Opportunity.etapa.in_(CLOSED_LOST))
+    perdido_usd = float(
+        lost_base.with_entities(func.coalesce(func.sum(Opportunity.valor_usd), 0)).scalar() or 0
+    )
+    perdido_count = lost_base.count()
 
     etapas_q = (
         opp_base.with_entities(Opportunity.etapa, func.count(Opportunity.id).label("count"))
@@ -125,6 +138,8 @@ def get_kpis(business_line_id: Optional[int] = None, db: Session = Depends(get_d
         "margen_servicios_usd": margen_servicios,
         "total_oportunidades": total_opps,
         "total_cotizaciones": total_quotes,
+        "perdido_usd": perdido_usd,
+        "perdido_count": perdido_count,
         "oportunidades_por_etapa": {(row.etapa or "Sin etapa"): row.count for row in etapas_q},
         "leads_por_etapa": {row.etapa: row.count for row in leads_by_stage},
         "total_leads": db.query(func.count(Lead.id)).scalar(),

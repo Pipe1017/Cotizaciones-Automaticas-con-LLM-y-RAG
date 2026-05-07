@@ -78,6 +78,8 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
   const margenServicios = kpis?.margen_servicios_usd ?? 0
   const totalOpps       = kpis?.total_oportunidades ?? 0
   const totalQuotes     = kpis?.total_cotizaciones ?? 0
+  const perdidoUsd      = kpis?.perdido_usd ?? 0
+  const perdidoCount    = kpis?.perdido_count ?? 0
   const pct = totalPipeline > 0 ? Math.round(comprometido / totalPipeline * 100) : 0
   const margenPct = totalPipeline > 0 ? Math.round(margenEsperado / totalPipeline * 100) : 0
 
@@ -151,8 +153,8 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
         <>
           {/* ── KPI Row ── */}
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <KPI label="Pipeline Total USD" value={fmt(totalPipeline)}
-              sub="Oportunidades activas" icon={DollarSign}
+            <KPI label="Pipeline Activo USD" value={fmt(totalPipeline)}
+              sub="Excluye perdidas y canceladas" icon={DollarSign}
               color="bg-brand-900" accent={pct > 0 ? `${pct}% comprometido` : undefined} />
             <KPI label="Comprometido USD" value={fmt(comprometido)}
               sub="Go × Get ponderado" icon={Target} color="bg-emerald-600" />
@@ -166,9 +168,14 @@ export default function Dashboard({ allowedBL }: { allowedBL?: number[] }) {
                 sub="De servicios de ingeniería activos" icon={TrendingUp} color="bg-cyan-600" />
             )}
             <KPI label="Oportunidades" value={totalOpps}
-              sub="En pipeline" icon={TrendingUp} color="bg-slate-600" />
+              sub="En proceso, enviadas y ganadas" icon={TrendingUp} color="bg-slate-600" />
             <KPI label="Cotizaciones" value={totalQuotes}
               sub="Versiones activas" icon={FileText} color="bg-violet-600" />
+            {perdidoUsd > 0 && (
+              <KPI label="Perdido / Cancelado" value={fmt(perdidoUsd)}
+                sub={`${perdidoCount} oportunidad${perdidoCount !== 1 ? 'es' : ''} — no incluidas en pipeline`}
+                icon={TrendingDown} color="bg-red-400" />
+            )}
           </div>
 
           {/* ── Tasas + Pipeline ── */}

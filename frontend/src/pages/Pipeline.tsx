@@ -40,6 +40,8 @@ const fmt = (n: number) =>
 
 // ── Edit / New-version form (shared) ──────────────────────────
 interface QItem { referencia_usa: string; descripcion: string; referencia_cod_proveedor: string; marca: string; cantidad: string; precio_unitario_usd: string; opcional: boolean }
+interface QService { id: number; nombre: string; horas: string; tarifa_hora_usd: number; motivo: string }
+
 const toFormItems = (items: any[]): QItem[] =>
   items.map(it => ({
     referencia_usa: it.referencia_usa || '',
@@ -57,15 +59,21 @@ function QuoteEditForm({
   const qc = useQueryClient()
   const { data: quote } = useQuery({ queryKey: ['quotation', quotationId], queryFn: () => getQuotation(quotationId) })
   const { data: rawItems = [] } = useQuery({ queryKey: ['quotation-items', quotationId], queryFn: () => getQuotationItems(quotationId) })
+  const { data: rawServices = [], isSuccess: servicesLoaded } = useQuery({ queryKey: ['quotation-services', quotationId], queryFn: () => getQuotationServices(quotationId) })
 
   const [items, setItems] = useState<QItem[]>([])
+  const [services, setServices] = useState<QService[]>([])
   const [pagos, setPagos] = useState('')
   const [garantia, setGarantia] = useState('')
   const [obs, setObs] = useState('')
   const [initialized, setInitialized] = useState(false)
 
-  if (!initialized && (rawItems as any[]).length > 0 && quote) {
+  if (!initialized && (rawItems as any[]).length > 0 && quote && servicesLoaded) {
     setItems(toFormItems(rawItems as any[]))
+    setServices((rawServices as any[]).map((s: any) => ({
+      id: s.id, nombre: s.nombre, horas: String(s.horas),
+      tarifa_hora_usd: Number(s.tarifa_hora_usd), motivo: s.motivo || '',
+    })))
     setPagos(quote.condiciones_pago || '30 días')
     setGarantia(quote.condiciones_garantia || '1 año')
     setObs(quote.observaciones || '')
@@ -97,6 +105,7 @@ function QuoteEditForm({
         precio_unitario_usd: parseFloat(it.precio_unitario_usd) || 0,
         opcional: it.opcional,
       })),
+      services: services.map(s => ({ id: s.id, horas: parseFloat(s.horas) || 0 })),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['opportunities'] })
@@ -173,6 +182,41 @@ function QuoteEditForm({
         <span className="text-emerald-700">Total: <strong>${total.toLocaleString('en', { minimumFractionDigits: 2 })}</strong></span>
       </div>
 
+      {/* Services editing */}
+      {services.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Servicios de Ingeniería — edita las horas</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-100">
+                <tr>
+                  {['Rol', 'Motivo IA', 'Horas', 'Tarifa/h', 'Subtotal'].map(h =>
+                    <th key={h} className="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-500 uppercase">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {services.map((svc, idx) => {
+                  const sub = (parseFloat(svc.horas) || 0) * svc.tarifa_hora_usd
+                  return (
+                    <tr key={svc.id} className="border-t border-slate-100">
+                      <td className="px-2 py-1.5 font-semibold text-slate-700">{svc.nombre}</td>
+                      <td className="px-2 py-1.5 text-slate-400 text-[11px] max-w-[200px] truncate" title={svc.motivo}>{svc.motivo || '—'}</td>
+                      <td className="px-2 py-1.5">
+                        <input type="number" value={svc.horas} step="0.5" min="0"
+                          onChange={e => setServices(p => p.map((s, i) => i === idx ? { ...s, horas: e.target.value } : s))}
+                          className="w-16 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" />
+                      </td>
+                      <td className="px-2 py-1.5 text-slate-500">${svc.tarifa_hora_usd.toFixed(2)}</td>
+                      <td className="px-2 py-1.5 font-semibold text-emerald-700">${sub.toFixed(2)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Cond. pago</label>
@@ -231,42 +275,6 @@ function CatalogWarnings({ quotationId }: { quotationId: number }) {
   )
 }
 
-// ── Servicios de Ingeniería en cotización ─────────────────────
-function ServicesInfo({ quotationId }: { quotationId: number }) {
-  const { data: services = [] } = useQuery({
-    queryKey: ['quotation-services', quotationId],
-    queryFn: () => getQuotationServices(quotationId),
-  })
-
-  if (!(services as any[]).length) return null
-
-  const total = (services as any[]).reduce((s: number, sv: any) => s + Number(sv.subtotal_usd), 0)
-
-  return (
-    <div className="pt-2 border-t border-slate-100">
-      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-        <span>Servicios de Ingeniería</span>
-        <span className="text-[10px] font-normal text-slate-400 normal-case">— incluidos en el total</span>
-      </p>
-      <div className="space-y-1.5">
-        {(services as any[]).map((sv: any) => (
-          <div key={sv.id} className="flex items-start justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2 text-xs">
-            <div>
-              <span className="font-semibold text-slate-700">{sv.nombre}</span>
-              <span className="text-slate-400 ml-2">{Number(sv.horas).toFixed(1)}h × ${Number(sv.tarifa_hora_usd).toFixed(2)}/h</span>
-              {sv.motivo && <p className="text-slate-400 mt-0.5 text-[11px] italic">{sv.motivo}</p>}
-            </div>
-            <span className="font-semibold text-slate-800 whitespace-nowrap">${Number(sv.subtotal_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-          </div>
-        ))}
-        <div className="flex justify-end text-xs font-semibold text-slate-700 px-1">
-          Subtotal servicios: ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Trazabilidad IA ────────────────────────────────────────────
 function AITrace({ quote }: { quote: any }) {
   const [open, setOpen] = useState(false)
@@ -312,12 +320,11 @@ function VersionHistory({ quotationId }: { quotationId: number }) {
   const { data: versions = [], isLoading } = useQuery({
     queryKey: ['quotation-versions', quotationId],
     queryFn: () => getQuotationVersions(quotationId),
-    enabled: open,
   })
 
-  const prev = (versions as any[]).slice(1) // skip current (index 0)
+  const prev = (versions as any[]).slice(1)
 
-  if (prev.length === 0 && !isLoading && open) return null
+  if (isLoading || prev.length === 0) return null
 
   return (
     <div className="pt-1 border-t border-gray-100">
@@ -531,7 +538,6 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           <ManualPdfAdjust opp={opp} />
         </div>
       )}
-      <ServicesInfo quotationId={quotationId} />
       <CatalogWarnings quotationId={quotationId} />
       {quote && <AITrace quote={quote} />}
       <VersionHistory quotationId={quotationId} />

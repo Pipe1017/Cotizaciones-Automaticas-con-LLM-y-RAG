@@ -55,6 +55,11 @@ class QuotationItemIn(BaseModel):
     opcional: bool = False
 
 
+class QuotationServiceEditIn(BaseModel):
+    id: int
+    horas: Decimal
+
+
 class QuotationIn(BaseModel):
     company_id: Optional[int] = None
     opportunity_id: Optional[int] = None  # link to existing opp instead of creating new one
@@ -637,6 +642,7 @@ class QuotationEditIn(BaseModel):
     landed_pct: Optional[Decimal] = Decimal("0")
     margen_pct: Optional[Decimal] = Decimal("0")
     items: list[QuotationItemIn]
+    services: Optional[list[QuotationServiceEditIn]] = None
 
 
 def _services_for_doc(quotation_id: int, db: Session) -> tuple[list, float]:
@@ -761,6 +767,15 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
             opcional=bool(item.get("opcional", False)),
         ))
+
+    # Update service hours if provided
+    if data.services:
+        from app.models.engineering import QuotationService as QS
+        for svc_in in data.services:
+            svc = db.query(QS).filter(QS.id == svc_in.id, QS.quotation_id == quote_id).first()
+            if svc:
+                svc.horas = svc_in.horas
+                svc.subtotal_usd = Decimal(str(svc.tarifa_hora_usd)) * svc_in.horas
 
     # Update linked opportunity value
     from app.models.opportunity import Opportunity
@@ -903,6 +918,23 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
             precio_unitario_usd=Decimal(str(item["precio_unitario_usd"])),
             precio_total_usd=Decimal(str(item["cantidad"])) * Decimal(str(item["precio_unitario_usd"])),
             opcional=bool(item.get("opcional", False)),
+        ))
+
+    # Copy services from original, applying any hour edits
+    from app.models.engineering import QuotationService as QS
+    orig_services = db.query(QS).filter(QS.quotation_id == quote_id).all()
+    svc_hours_map = {s.id: s.horas for s in (data.services or [])}
+    for osvc in orig_services:
+        new_horas = Decimal(str(svc_hours_map.get(osvc.id, osvc.horas)))
+        db.add(QS(
+            quotation_id=new_quote.id,
+            role_id=osvc.role_id,
+            nombre=osvc.nombre,
+            horas=new_horas,
+            tarifa_hora_usd=osvc.tarifa_hora_usd,
+            tarifa_base_usd=osvc.tarifa_base_usd,
+            subtotal_usd=Decimal(str(osvc.tarifa_hora_usd)) * new_horas,
+            motivo=osvc.motivo,
         ))
 
     # Relink the opportunity to the new version and clear any manual PDF
