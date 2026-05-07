@@ -3,12 +3,12 @@ import {
   getOpportunities, createOpportunity, updateOpportunity, deleteOpportunity,
   getCompanies, getBusinessLines, generateQuotation, createQuotation, getQuotation,
   getQuotationItems, editQuotation, newQuotationVersion, getQuotationVersions,
-  uploadOpportunityExcel, uploadOpportunityPdf, updateQuotationStatus,
+  uploadOpportunityExcel, uploadOpportunityPdf,
 } from '../lib/api'
 import { useState, useRef } from 'react'
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  Sparkles, FileText, Download, X, Upload, GitBranch,
+  Cpu, FileText, Download, X, Upload, GitBranch,
 } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
@@ -195,7 +195,7 @@ function AITrace({ quote }: { quote: any }) {
     <div className="pt-1 border-t border-gray-100">
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 text-[11px] text-brand-400 hover:text-brand-600 transition-colors">
-        <Sparkles size={11} />
+        <Cpu size={11} />
         <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         Generado con IA — ver trazabilidad
       </button>
@@ -537,7 +537,7 @@ function AIQuotePanel({ opp, onSuccess }: { opp: any; onSuccess?: () => void }) 
       <div className="flex items-center gap-3">
         <button onClick={handleGenerate} disabled={generate.isPending || !prompt.trim()}
           className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-          <Sparkles size={14} />
+          <Cpu size={14} />
           {generate.isPending ? 'Generando con IA...' : 'Generar Cotización'}
         </button>
         {generate.isPending && (
@@ -812,7 +812,7 @@ function QuoteGenerator({ opp, onSuccess }: { opp: any; onSuccess?: () => void }
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'ia' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}>
-          <Sparkles size={14} /> Generar con IA
+          <Cpu size={14} /> Generar con IA
         </button>
         <button
           onClick={() => setTab('manual')}
@@ -882,52 +882,27 @@ function OppRow({ opp, companies, businessLines, onEdit, onDelete }: {
         <td className="px-3 py-3">
           <Badge variant={ETAPA_VARIANT[opp.etapa] || 'gray'}>{opp.etapa || '—'}</Badge>
         </td>
-        <td className="px-3 py-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-400">
-              Go <span className="font-bold text-slate-600">{opp.prob_go ?? 50}%</span>
-              {' · '}Get <span className="font-bold text-slate-600">{opp.prob_get ?? 50}%</span>
-            </span>
-            <span className={`text-xs font-bold ${probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50) >= 50 ? 'text-emerald-600' : 'text-amber-500'}`}>
-              {probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50)}% combinada
-            </span>
-          </div>
+        <td className="px-3 py-3 whitespace-nowrap">
+          <span className={`text-sm font-bold tabular-nums ${probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50) >= 50 ? 'text-emerald-600' : 'text-amber-500'}`}>
+            {probCombined(opp.prob_go ?? 50, opp.prob_get ?? 50)}%
+          </span>
         </td>
-        <td className="px-3 py-3 text-sm">
-          <span className="font-semibold text-emerald-700">
+        <td className="px-3 py-3 whitespace-nowrap">
+          <span className="font-semibold text-emerald-700 text-sm tabular-nums">
             {opp.valor_usd ? fmt(Number(opp.valor_usd)) : '—'}
           </span>
-          {margenDisplay && (
-            <span className="block text-[10px] text-amber-600 font-medium">{margenDisplay} margen</span>
-          )}
         </td>
-        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+        <td className="px-3 py-3 whitespace-nowrap">
           {opp.quotation_id ? (
-            <div className="flex flex-col gap-1">
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
-                <FileText size={10} /> {opp.numero_oportunidad || `#${opp.quotation_id}`}
-              </span>
-              <select
-                value={opp.quotation_estado || 'borrador'}
-                onChange={e => updateQuotationStatus(opp.quotation_id, e.target.value).then(() => qc.invalidateQueries({ queryKey: ['opportunities'] }))}
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 cursor-pointer w-fit ${
-                  opp.quotation_estado === 'aprobada'  ? 'bg-green-100 text-green-700'
-                  : opp.quotation_estado === 'enviada'   ? 'bg-blue-100 text-blue-700'
-                  : opp.quotation_estado === 'rechazada' ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-500'
-                }`}>
-                <option value="borrador">Borrador</option>
-                <option value="enviada">Enviada</option>
-                <option value="aprobada">Aprobada</option>
-                <option value="rechazada">Rechazada</option>
-              </select>
-            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+              <FileText size={10} /> {opp.numero_oportunidad || `#${opp.quotation_id}`}
+            </span>
           ) : (opp.file_manual_excel || opp.file_manual_pdf) ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-              <Upload size={10} /> Archivo cargado
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+              <Upload size={10} /> Archivo
             </span>
           ) : (
-            <span className="text-xs text-gray-300 italic">Sin cotización</span>
+            <span className="text-xs text-gray-300">—</span>
           )}
         </td>
         <td className="px-3 py-3 text-gray-500 text-xs">{opp.asesor || '—'}</td>
@@ -1218,7 +1193,7 @@ export default function Pipeline({ allowedBL }: { allowedBL?: number[] }) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['# Propuesta', 'Fecha', 'Cliente', 'Nombre propuesta', 'Línea', 'Etapa', 'Prob.', 'Valor USD', 'Cotización', 'Asesor', '', ''].map((h, i) => (
+                {['#', 'Fecha', 'Cliente', 'Propuesta', 'Línea', 'Etapa', 'Prob.', 'Valor USD', 'Cotización', 'Asesor', '', ''].map((h, i) => (
                   <th key={i} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
