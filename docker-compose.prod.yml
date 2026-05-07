@@ -44,9 +44,7 @@ services:
       minio:
         condition: service_healthy
     volumes:
-      - "./Conttexto CRM Baterias Traccion:/data/crm_baterias:ro"
-      - "./Contexto CRM Fertilizantes:/data/crm_fertilizantes:ro"
-    # Sin --reload en producción
+      - rclone_config:/root/.config/rclone   # persiste config de rclone entre rebuilds
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 
   nginx:
@@ -63,3 +61,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  rclone_config:
