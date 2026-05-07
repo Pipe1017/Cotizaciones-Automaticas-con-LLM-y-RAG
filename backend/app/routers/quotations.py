@@ -428,10 +428,11 @@ def create_quotation(data: QuotationIn, db: Session = Depends(get_db)):
             "referencia_usa": it.get("referencia_usa"),
             "descripcion": it["descripcion"],
             "referencia_cod_proveedor": it.get("referencia_cod_proveedor"),
-            "marca": it.get("marca", "HOPPECKE"),
+            "marca": it.get("marca") or None,
             "cantidad": float(it["cantidad"]),
             "precio_unitario_usd": float(it["precio_unitario_usd"]),
             "precio_total_usd": float(Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))),
+            "opcional": bool(it.get("opcional", False)),
         }
         for i, it in enumerate(adjusted_items)
     ]
@@ -638,6 +639,24 @@ class QuotationEditIn(BaseModel):
     items: list[QuotationItemIn]
 
 
+def _services_for_doc(quotation_id: int, db: Session) -> tuple[list, float]:
+    """Carga los servicios de ingeniería de una cotización para incluir en los documentos."""
+    from app.models.engineering import QuotationService as QS
+    svcs = db.query(QS).filter(QS.quotation_id == quotation_id).all()
+    svc_list = [
+        {
+            "nombre": s.nombre,
+            "horas": float(s.horas),
+            "tarifa_hora_usd": float(s.tarifa_hora_usd),
+            "subtotal_usd": float(s.subtotal_usd),
+            "motivo": s.motivo,
+        }
+        for s in svcs
+    ]
+    svc_subtotal = sum(s["subtotal_usd"] for s in svc_list)
+    return svc_list, svc_subtotal
+
+
 def _build_docs_and_files(quote: "Quotation", items_for_docs: list, doc_data: dict, db: Session) -> None:
     """Generates Excel, Word carta, Word cotización, PDF and uploads to MinIO."""
     from app.services.word_service import generate_carta, generate_cotizacion
@@ -772,14 +791,16 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
             "referencia_usa": it.get("referencia_usa"),
             "descripcion": it["descripcion"],
             "referencia_cod_proveedor": it.get("referencia_cod_proveedor"),
-            "marca": it.get("marca", "HOPPECKE"),
+            "marca": it.get("marca") or None,
             "cantidad": float(it["cantidad"]),
             "precio_unitario_usd": float(it["precio_unitario_usd"]),
             "precio_total_usd": float(Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))),
+            "opcional": bool(it.get("opcional", False)),
         }
         for i, it in enumerate(adjusted_items)
     ]
 
+    svc_list, svc_subtotal = _services_for_doc(quote.id, db)
     doc_data = {
         "cliente": cliente_nombre,
         "contacto_nombre": quote.contacto_nombre or "",
@@ -789,6 +810,8 @@ def edit_quotation(quote_id: int, data: QuotationEditIn, db: Session = Depends(g
         "asesor": quote.asesor or "Aura María Gallego",
         "business_line_nombre": bl_nombre,
         "titulo_oportunidad": f"Cotización {quote.numero_cotizacion}",
+        "servicios": svc_list,
+        "servicios_subtotal_usd": svc_subtotal,
         "subtotal_usd": float(subtotal),
         "iva_pct": float(data.iva_pct),
         "total_usd": float(total),
@@ -914,14 +937,16 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
             "referencia_usa": it.get("referencia_usa"),
             "descripcion": it["descripcion"],
             "referencia_cod_proveedor": it.get("referencia_cod_proveedor"),
-            "marca": it.get("marca", "HOPPECKE"),
+            "marca": it.get("marca") or None,
             "cantidad": float(it["cantidad"]),
             "precio_unitario_usd": float(it["precio_unitario_usd"]),
             "precio_total_usd": float(Decimal(str(it["cantidad"])) * Decimal(str(it["precio_unitario_usd"]))),
+            "opcional": bool(it.get("opcional", False)),
         }
         for i, it in enumerate(adjusted_items)
     ]
 
+    svc_list, svc_subtotal = _services_for_doc(new_quote.id, db)
     doc_data = {
         "cliente": cliente_nombre,
         "contacto_nombre": new_quote.contacto_nombre or "",
@@ -931,6 +956,8 @@ def new_version(quote_id: int, data: QuotationEditIn, db: Session = Depends(get_
         "asesor": new_quote.asesor or "Aura María Gallego",
         "business_line_nombre": bl_nombre,
         "titulo_oportunidad": f"Cotización {new_numero}",
+        "servicios": svc_list,
+        "servicios_subtotal_usd": svc_subtotal,
         "subtotal_usd": float(subtotal),
         "iva_pct": float(data.iva_pct),
         "total_usd": float(total),
