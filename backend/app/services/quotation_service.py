@@ -157,25 +157,36 @@ class QuotationService:
         if not ai_items:
             raise ValueError("DeepSeek no retornó ítems de cotización")
 
-        # Validación: si la IA devolvió precio 0 para un ítem, buscar el precio en el catálogo
+        # Validación de catálogo: verificar cada ítem devuelto por la IA
         catalog = json.loads(catalog_json)
         ref_price_map = {
             p["referencia_usa"]: p["precio_neto_usd"]
             for p in catalog
             if p.get("referencia_usa") and p.get("precio_neto_usd")
         }
-        modelo_price_map = {
-            p["modelo_hoppecke"]: p["precio_neto_usd"]
-            for p in catalog
-            if p.get("modelo_hoppecke") and p.get("precio_neto_usd")
-        }
+        catalog_refs = set(p["referencia_usa"] for p in catalog if p.get("referencia_usa"))
+
         for item in ai_items:
-            if not item.get("precio_unitario_usd"):
-                ref = item.get("referencia_usa", "")
-                desc = item.get("descripcion", "")
-                price = ref_price_map.get(ref) or modelo_price_map.get(desc)
-                if price:
-                    item["precio_unitario_usd"] = price
+            ref = item.get("referencia_usa", "")
+            precio = float(item.get("precio_unitario_usd") or 0)
+
+            if ref in catalog_refs:
+                # Referencia exacta encontrada — usar precio del catálogo
+                item["precio_unitario_usd"] = ref_price_map.get(ref, precio)
+                item["notas"] = None
+            else:
+                # Referencia NO encontrada en catálogo
+                if precio > 0:
+                    item["notas"] = (
+                        f"Referencia '{ref}' no encontrada en catálogo. "
+                        "Precio estimado por IA — verificar con proveedor antes de enviar."
+                    )
+                else:
+                    item["precio_unitario_usd"] = 0
+                    item["notas"] = (
+                        f"Referencia '{ref}' no encontrada en catálogo. "
+                        "Precio en $0 — se sugiere cotizar directamente con el proveedor."
+                    )
 
         # 2. Calculate totals
         subtotal = Decimal("0")
@@ -238,6 +249,7 @@ class QuotationService:
                     cantidad=Decimal(str(item.get("cantidad", 1))),
                     precio_unitario_usd=Decimal(str(item.get("precio_unitario_usd", 0))),
                     precio_total_usd=Decimal(str(item.get("precio_total_usd", 0))),
+                    notas=item.get("notas"),
                 )
             )
 

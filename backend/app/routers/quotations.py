@@ -104,6 +104,7 @@ class QuotationItemOut(BaseModel):
     cantidad: Decimal
     precio_unitario_usd: Decimal
     precio_total_usd: Decimal
+    notas: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -186,6 +186,32 @@ function QuoteEditForm({
   )
 }
 
+// ── Advertencias de catálogo ────────────────────────────────────
+function CatalogWarnings({ quotationId }: { quotationId: number }) {
+  const { data: items = [] } = useQuery({
+    queryKey: ['quotation-items', quotationId],
+    queryFn: () => getQuotationItems(quotationId),
+  })
+  const warnings = (items as any[]).filter((it: any) => it.notas)
+  if (!warnings.length) return null
+
+  return (
+    <div className="pt-2 border-t border-amber-100">
+      <div className="space-y-1.5">
+        {warnings.map((it: any) => (
+          <div key={it.id} className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
+            <span className="text-amber-500 font-bold shrink-0 mt-0.5">!</span>
+            <div>
+              <span className="font-semibold text-amber-800">{it.referencia_usa || it.descripcion}</span>
+              <span className="text-amber-700 ml-1">— {it.notas}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Trazabilidad IA ────────────────────────────────────────────
 function AITrace({ quote }: { quote: any }) {
   const [open, setOpen] = useState(false)
@@ -443,6 +469,7 @@ function QuotationInfo({ quotationId, numero, opp }: { quotationId: number; nume
           <ManualPdfAdjust opp={opp} />
         </div>
       )}
+      <CatalogWarnings quotationId={quotationId} />
       {quote && <AITrace quote={quote} />}
       <VersionHistory quotationId={quotationId} />
     </div>

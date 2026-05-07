@@ -54,3 +54,4 @@ class QuotationItem(Base):
     cantidad = Column(Numeric(8, 2), nullable=False)
     precio_unitario_usd = Column(Numeric(12, 2), nullable=False)
     precio_total_usd = Column(Numeric(14, 2), nullable=False)
+    notas = Column(Text, nullable=True)  # validación catálogo: None=OK, texto=advertencia
