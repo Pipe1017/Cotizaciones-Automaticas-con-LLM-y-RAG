@@ -72,6 +72,26 @@ def _ensure_admin_user():
         db.close()
 
 
+def _cleanup_stale_backups():
+    """Marca como 'error' los backups que quedaron en 'running' tras un reinicio."""
+    from app.database import SessionLocal
+    from app.routers.backup import BackupLog
+    from datetime import datetime, timezone
+    db = SessionLocal()
+    try:
+        stale = db.query(BackupLog).filter(BackupLog.status == "running").all()
+        for b in stale:
+            b.status = "error"
+            b.log = (b.log or "") + "\n[Interrumpido por reinicio del servidor]"
+            b.finished_at = datetime.now(timezone.utc)
+        if stale:
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _ensure_minio_buckets():
     """Crea los buckets de MinIO si no existen."""
     import logging
@@ -86,6 +106,7 @@ def _ensure_minio_buckets():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _cleanup_stale_backups()
     _ensure_minio_buckets()
     _ensure_admin_user()
     # Cron: revisa cada hora si toca hacer backup
