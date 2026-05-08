@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CloudUpload, Play, CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, Terminal, RotateCcw, Database, FolderOpen } from 'lucide-react'
+import { CloudUpload, Play, CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, Terminal, RotateCcw } from 'lucide-react'
 import api from '../lib/api'
 
 // ── API ───────────────────────────────────────────────────────────────────────
-const getConfig        = () => api.get('/backup/config').then(r => r.data)
-const getRemotes       = () => api.get('/backup/remotes').then(r => r.data)
-const getLogs          = () => api.get('/backup/logs').then(r => r.data)
-const saveConfig       = (d: any) => api.put('/backup/config', d).then(r => r.data)
-const runBackup        = () => api.post('/backup/run').then(r => r.data)
+const getConfig         = () => api.get('/backup/config').then(r => r.data)
+const getRemotes        = () => api.get('/backup/remotes').then(r => r.data)
+const getLogs           = () => api.get('/backup/logs').then(r => r.data)
+const saveConfig        = (d: any) => api.put('/backup/config', d).then(r => r.data)
+const runBackup         = () => api.post('/backup/run').then(r => r.data)
 const listRestorePoints = () => api.get('/backup/restore/list').then(r => r.data)
-const restoreDb        = (filename: string) => api.post('/backup/restore/db', { filename }).then(r => r.data)
-const restoreFiles     = () => api.post('/backup/restore/files').then(r => r.data)
+const restorePoint      = (ts: string) => api.post('/backup/restore', { ts }).then(r => r.data)
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
@@ -46,8 +45,8 @@ export default function Backup() {
     schedule_hour: 2, enabled: false,
   })
   const [showLog, setShowLog] = useState<number | null>(null)
-  const [selectedDump, setSelectedDump] = useState<string | null>(null)
-  const [confirmRestore, setConfirmRestore] = useState<'db' | 'files' | null>(null)
+  const [selectedTs, setSelectedTs] = useState<string | null>(null)
+  const [confirmRestore, setConfirmRestore] = useState(false)
 
   const { data: restorePoints = [], refetch: fetchRestorePoints, isFetching: loadingPoints } = useQuery({
     queryKey: ['restore-points'],
@@ -55,13 +54,9 @@ export default function Backup() {
     enabled: false,
   })
 
-  const restoreDbMut = useMutation({
-    mutationFn: (filename: string) => restoreDb(filename),
-    onSuccess: () => setConfirmRestore(null),
-  })
-  const restoreFilesMut = useMutation({
-    mutationFn: restoreFiles,
-    onSuccess: () => setConfirmRestore(null),
+  const restoreMut = useMutation({
+    mutationFn: (ts: string) => restorePoint(ts),
+    onSuccess: () => setConfirmRestore(false),
   })
 
   useEffect(() => {
@@ -329,99 +324,76 @@ export default function Backup() {
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
             <RotateCcw size={15} className="text-red-500" /> Restaurar desde backup
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">Reemplaza los datos actuales con un backup guardado en Google Drive</p>
+          <p className="text-xs text-slate-400 mt-0.5">Cada punto restaura BD + archivos del mismo momento — siempre están sincronizados</p>
         </div>
 
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-700">
-          <strong>⚠️ Advertencia:</strong> La restauración reemplaza TODOS los datos actuales (clientes, oportunidades, cotizaciones). Esta acción no se puede deshacer.
+          <strong>⚠️ Advertencia:</strong> Reemplaza TODOS los datos actuales (clientes, oportunidades, cotizaciones y archivos). No se puede deshacer.
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Restaurar BD */}
-          <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-            <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-              <Database size={13} /> Base de datos
-            </p>
-            <button
-              onClick={() => fetchRestorePoints()}
-              disabled={loadingPoints}
-              className="flex items-center gap-1.5 text-xs text-brand-700 hover:underline disabled:opacity-40"
-            >
-              <RefreshCw size={11} className={loadingPoints ? 'animate-spin' : ''} />
-              {loadingPoints ? 'Buscando…' : 'Listar backups disponibles'}
-            </button>
+        <button
+          onClick={() => fetchRestorePoints()}
+          disabled={loadingPoints}
+          className="flex items-center gap-1.5 text-xs text-brand-700 hover:underline disabled:opacity-40"
+        >
+          <RefreshCw size={11} className={loadingPoints ? 'animate-spin' : ''} />
+          {loadingPoints ? 'Buscando…' : 'Listar puntos de restauración'}
+        </button>
 
-            {(restorePoints as any[]).length > 0 && (
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {(restorePoints as any[]).map((p: any) => (
-                  <label key={p.filename} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-xs transition-all ${
-                    selectedDump === p.filename ? 'border-brand-400 bg-brand-50' : 'border-slate-100 hover:border-slate-300'
-                  }`}>
-                    <input type="radio" name="dump" checked={selectedDump === p.filename}
-                      onChange={() => setSelectedDump(p.filename)} className="accent-brand-600" />
-                    <div>
-                      <p className="font-mono text-slate-700">{p.filename}</p>
-                      {p.date && <p className="text-slate-400 text-[10px]">{p.date}</p>}
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <button
-              onClick={() => setConfirmRestore('db')}
-              disabled={!selectedDump}
-              className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 rounded-lg disabled:opacity-30 transition-colors"
-            >
-              <RotateCcw size={12} /> Restaurar BD seleccionada
-            </button>
+        {(restorePoints as any[]).length > 0 && (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            {(restorePoints as any[]).map((p: any) => (
+              <label key={p.ts} className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer text-sm transition-all ${
+                selectedTs === p.ts ? 'border-brand-400 bg-brand-50' : 'border-slate-100 hover:border-slate-300'
+              }`}>
+                <input type="radio" name="restore-point" checked={selectedTs === p.ts}
+                  onChange={() => setSelectedTs(p.ts)} className="accent-brand-600" />
+                <div>
+                  <p className="font-semibold text-slate-800">{p.label}</p>
+                  <p className="text-[11px] text-slate-400">BD + archivos</p>
+                </div>
+              </label>
+            ))}
           </div>
+        )}
 
-          {/* Restaurar archivos */}
-          <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-            <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-              <FolderOpen size={13} /> Archivos (PDFs, Excels)
-            </p>
-            <p className="text-xs text-slate-400">
-              Sincroniza los archivos MinIO desde el último backup en Google Drive.
-            </p>
-            <button
-              onClick={() => setConfirmRestore('files')}
-              className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
-            >
-              <RotateCcw size={12} /> Restaurar archivos
-            </button>
-            {restoreFilesMut.isSuccess && (
-              <p className="text-xs text-emerald-600 flex items-center gap-1">
-                <CheckCircle size={11} /> Restauración iniciada en background
-              </p>
-            )}
-          </div>
-        </div>
+        {(restorePoints as any[]).length === 0 && !loadingPoints && (
+          <p className="text-xs text-slate-400">No se encontraron puntos de restauración.</p>
+        )}
+
+        <button
+          onClick={() => setConfirmRestore(true)}
+          disabled={!selectedTs}
+          className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-30 transition-colors"
+        >
+          <RotateCcw size={14} /> Restaurar punto seleccionado
+        </button>
+
+        {restoreMut.isSuccess && (
+          <p className="text-xs text-emerald-600 flex items-center gap-1">
+            <CheckCircle size={11} /> Restauración iniciada en background — puede tardar unos minutos
+          </p>
+        )}
       </div>
 
       {/* Modal de confirmación */}
-      {confirmRestore && (
+      {confirmRestore && selectedTs && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <h3 className="font-semibold text-slate-800 text-lg">¿Confirmar restauración?</h3>
             <p className="text-sm text-slate-500">
-              {confirmRestore === 'db'
-                ? `Se restaurará la base de datos desde "${selectedDump}". Todos los datos actuales serán reemplazados.`
-                : 'Se sincronizarán los archivos MinIO desde el último backup. Los archivos actuales serán reemplazados.'}
+              Se restaurará el punto <strong>{selectedTs}</strong>: base de datos y archivos del mismo momento.
+              Todos los datos actuales serán reemplazados.
             </p>
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => {
-                  if (confirmRestore === 'db' && selectedDump) restoreDbMut.mutate(selectedDump)
-                  if (confirmRestore === 'files') restoreFilesMut.mutate()
-                }}
-                disabled={restoreDbMut.isPending || restoreFilesMut.isPending}
+                onClick={() => restoreMut.mutate(selectedTs)}
+                disabled={restoreMut.isPending}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40"
               >
-                {restoreDbMut.isPending || restoreFilesMut.isPending ? 'Iniciando…' : 'Sí, restaurar'}
+                {restoreMut.isPending ? 'Iniciando…' : 'Sí, restaurar'}
               </button>
-              <button onClick={() => setConfirmRestore(null)}
+              <button onClick={() => setConfirmRestore(false)}
                 className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50">
                 Cancelar
               </button>

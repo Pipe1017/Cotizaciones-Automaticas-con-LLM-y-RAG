@@ -128,18 +128,17 @@ async def _run_backup(config_id: int, db_url: str):
     total_size = 0.0
     ok = True
 
+    # Timestamp compartido para BD y archivos — forman un punto de restauración único
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+
     # 1. Backup BD
     if cfg.include_db:
         log += "── Backup de base de datos ──\n"
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         with tempfile.TemporaryDirectory() as tmpdir:
             dump_path = os.path.join(tmpdir, f"opex_db_{ts}.sql.gz")
             try:
-                dump_cmd = (
-                    f"pg_dump {db_url} | gzip > {dump_path}"
-                )
                 proc = await asyncio.create_subprocess_shell(
-                    dump_cmd,
+                    f"pg_dump {db_url} | gzip > {dump_path}",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -153,7 +152,6 @@ async def _run_backup(config_id: int, db_url: str):
 
                 upload = await asyncio.create_subprocess_exec(
                     "rclone", "copy", dump_path, f"{remote_dest}/db/",
-                    "--progress",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -165,28 +163,24 @@ async def _run_backup(config_id: int, db_url: str):
                 log += f"  ERROR BD: {e}\n"
                 ok = False
 
-    # 2. Sync archivos MinIO
+    # 2. Sync archivos MinIO — carpeta con mismo timestamp que el dump
     if cfg.include_files:
         log += "── Sync archivos MinIO ──\n"
         minio_host = getattr(settings, "minio_endpoint", "minio:9000")
         minio_bucket = settings.minio_bucket_quotations
-        minio_access = getattr(settings, "minio_access_key", "")
-        minio_secret = getattr(settings, "minio_secret_key", "")
-
         env = os.environ.copy()
         env["RCLONE_CONFIG_MINIO_TYPE"] = "s3"
         env["RCLONE_CONFIG_MINIO_PROVIDER"] = "Minio"
         env["RCLONE_CONFIG_MINIO_ENDPOINT"] = f"http://{minio_host}"
-        env["RCLONE_CONFIG_MINIO_ACCESS_KEY_ID"] = minio_access
-        env["RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY"] = minio_secret
+        env["RCLONE_CONFIG_MINIO_ACCESS_KEY_ID"] = getattr(settings, "minio_access_key", "")
+        env["RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY"] = getattr(settings, "minio_secret_key", "")
         env["RCLONE_CONFIG_MINIO_REGION"] = "us-east-1"
 
         try:
             sync = await asyncio.create_subprocess_exec(
                 "rclone", "sync",
                 f"minio:{minio_bucket}",
-                f"{remote_dest}/files/",
-                "--progress",
+                f"{remote_dest}/files/{ts}/",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
@@ -194,7 +188,7 @@ async def _run_backup(config_id: int, db_url: str):
             _, serr = await asyncio.wait_for(sync.communicate(), timeout=300)
             if sync.returncode != 0:
                 raise RuntimeError(serr.decode())
-            log += f"  Sync OK → {remote_dest}/files/\n"
+            log += f"  Sync OK → {remote_dest}/files/{ts}/\n"
         except Exception as e:
             log += f"  ERROR archivos: {e}\n"
             ok = False
@@ -260,12 +254,12 @@ def get_logs(db: Session = Depends(get_db), _=Depends(require_editor)):
 # ── Restore ───────────────────────────────────────────────────────────────────
 
 class RestoreRequest(BaseModel):
-    filename: str
+    ts: str   # e.g. "20260507_2358"
 
 
 @router.get("/restore/list")
 def list_restore_points(db: Session = Depends(get_db), _=Depends(require_editor)):
-    """Lista los dumps de BD disponibles en Google Drive."""
+    """Lista los puntos de restauración disponibles (BD + archivos con mismo timestamp)."""
     cfg = _get_or_create_config(db)
     if not cfg.rclone_remote or not cfg.remote_path:
         raise HTTPException(400, "Configura el backup primero")
@@ -274,14 +268,16 @@ def list_restore_points(db: Session = Depends(get_db), _=Depends(require_editor)
             ["rclone", "lsf", f"{cfg.rclone_remote}:{cfg.remote_path}/db/"],
             capture_output=True, text=True, timeout=30,
         )
-        files = []
+        points = []
         for line in result.stdout.strip().splitlines():
             name = line.strip()
-            if name.endswith(".sql.gz"):
-                files.append({"filename": name, "date": ""})
-        return sorted(files, key=lambda x: x["filename"], reverse=True)
+            if name.endswith(".sql.gz") and name.startswith("opex_db_"):
+                ts = name.replace("opex_db_", "").replace(".sql.gz", "")
+                label = f"{ts[:4]}-{ts[4:6]}-{ts[6:8]} {ts[9:11]}:{ts[11:]}" if len(ts) >= 13 else ts
+                points.append({"ts": ts, "label": label, "db_file": name})
+        return sorted(points, key=lambda x: x["ts"], reverse=True)
     except subprocess.TimeoutExpired:
-        raise HTTPException(500, "Timeout al listar backups en el remote")
+        raise HTTPException(500, "Timeout al listar puntos de restauración")
 
 
 async def _run_restore_db(remote: str, path: str, filename: str, db_url: str):
@@ -340,31 +336,82 @@ async def _run_restore_files(remote: str, path: str):
         log.error("Restore archivos — excepción: %s", e)
 
 
-@router.post("/restore/db")
-async def restore_db(
+@router.post("/restore")
+async def restore(
     data: RestoreRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _=Depends(require_editor),
 ):
+    """Restaura BD + archivos del mismo punto de backup (mismo timestamp)."""
     cfg = _get_or_create_config(db)
     if not cfg.rclone_remote or not cfg.remote_path:
         raise HTTPException(400, "Configura el backup primero")
+    db_file = f"opex_db_{data.ts}.sql.gz"
     background_tasks.add_task(
-        _run_restore_db, cfg.rclone_remote, cfg.remote_path,
-        data.filename, str(settings.database_url),
+        _run_restore_full, cfg.rclone_remote, cfg.remote_path,
+        db_file, data.ts, str(settings.database_url),
     )
-    return {"message": f"Restaurando {data.filename} en background"}
+    return {"message": f"Restaurando punto {data.ts} en background"}
 
 
-@router.post("/restore/files")
-async def restore_files(
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    _=Depends(require_editor),
-):
-    cfg = _get_or_create_config(db)
-    if not cfg.rclone_remote or not cfg.remote_path:
-        raise HTTPException(400, "Configura el backup primero")
-    background_tasks.add_task(_run_restore_files, cfg.rclone_remote, cfg.remote_path)
-    return {"message": "Restaurando archivos en background"}
+async def _run_restore_full(remote: str, path: str, db_file: str, ts: str, db_url: str):
+    import logging
+    log = logging.getLogger(__name__)
+    remote_dest = f"{remote}:{path}"
+
+    # 1. Restaurar BD
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dl = await asyncio.create_subprocess_exec(
+                "rclone", "copy", f"{remote_dest}/db/{db_file}", tmpdir,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            _, err = await asyncio.wait_for(dl.communicate(), timeout=120)
+            if dl.returncode != 0:
+                log.error("Restore BD — error descargando: %s", err.decode())
+                return
+            dump_path = os.path.join(tmpdir, db_file)
+            proc = await asyncio.create_subprocess_shell(
+                f"gunzip -c {dump_path} | psql {db_url}",
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            _, err = await asyncio.wait_for(proc.communicate(), timeout=300)
+            if proc.returncode != 0:
+                log.error("Restore BD — error psql: %s", err.decode())
+                return
+            log.info("BD restaurada desde %s", db_file)
+    except Exception as e:
+        log.error("Restore BD — excepción: %s", e)
+        return
+
+    # 2. Restaurar archivos MinIO (desde carpeta con mismo timestamp)
+    minio_host = getattr(settings, "minio_endpoint", "minio:9000")
+    env = os.environ.copy()
+    env["RCLONE_CONFIG_MINIO_TYPE"] = "s3"
+    env["RCLONE_CONFIG_MINIO_PROVIDER"] = "Minio"
+    env["RCLONE_CONFIG_MINIO_ENDPOINT"] = f"http://{minio_host}"
+    env["RCLONE_CONFIG_MINIO_ACCESS_KEY_ID"] = getattr(settings, "minio_access_key", "")
+    env["RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY"] = getattr(settings, "minio_secret_key", "")
+    env["RCLONE_CONFIG_MINIO_REGION"] = "us-east-1"
+    # Intenta la carpeta con timestamp; si no existe, usa files/ legacy
+    files_src = f"{remote_dest}/files/{ts}/"
+    check = subprocess.run(
+        ["rclone", "lsf", files_src], capture_output=True, text=True, timeout=15
+    )
+    if not check.stdout.strip():
+        files_src = f"{remote_dest}/files/"   # fallback para backups antiguos
+    try:
+        sync = await asyncio.create_subprocess_exec(
+            "rclone", "sync", files_src,
+            f"minio:{settings.minio_bucket_quotations}",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        _, err = await asyncio.wait_for(sync.communicate(), timeout=300)
+        if sync.returncode != 0:
+            log.error("Restore archivos — error: %s", err.decode())
+        else:
+            log.info("Archivos MinIO restaurados desde %s", files_src)
+    except Exception as e:
+        log.error("Restore archivos — excepción: %s", e)
