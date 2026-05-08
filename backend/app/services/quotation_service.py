@@ -90,9 +90,24 @@ class QuotationService:
             for r in roles
         ], ensure_ascii=False)
 
+    def _exchange_rate_cop(self) -> float:
+        """Retorna cuántos pesos colombianos vale 1 USD (tasa COP/USD desde la BD)."""
+        from app.models.exchange_rate import ExchangeRate
+        rate = self.db.query(ExchangeRate).filter(ExchangeRate.currency == "COP").first()
+        if rate and rate.rate_to_usd and float(rate.rate_to_usd) > 0:
+            return round(1 / float(rate.rate_to_usd), 2)
+        return 4200.0  # fallback razonable
+
     def _build_context(self, data) -> str:
         """Construye el contexto completo de la oportunidad para enriquecer el prompt de la IA."""
         lines = []
+
+        # Tasa de cambio — crítico para interpretar presupuestos en pesos
+        cop_per_usd = self._exchange_rate_cop()
+        lines.append(f"TASA DE CAMBIO ACTUAL: 1 USD = {cop_per_usd:,.0f} COP")
+        lines.append(f"  → Si el cliente menciona un presupuesto en PESOS, divídelo por {cop_per_usd:,.0f} para convertir a USD.")
+        lines.append(f"  → Ejemplo: 100 millones de pesos = ${100_000_000 / cop_per_usd:,.0f} USD aprox.")
+        lines.append("")
 
         opp_id = getattr(data, 'opportunity_id', None)
         company_id = getattr(data, 'company_id', None)

@@ -41,6 +41,9 @@ REGLAS CRÍTICAS — NO NEGOCIABLES:
    Si no se mencionan, deja "servicios" como array vacío [].
    Si el usuario pide que los infiera, detalla en "razonamiento" las horas estimadas, la complejidad técnica y el criterio usado.
    El campo "rol" debe coincidir EXACTAMENTE con el "nombre" de un rol del catálogo de servicios.
+9. MONEDA: El contexto del prompt incluye la TASA DE CAMBIO ACTUAL (COP/USD). Si el cliente menciona un presupuesto
+   en pesos colombianos, SIEMPRE conviértelo a USD usando esa tasa antes de seleccionar productos.
+   NUNCA trates pesos como si fueran dólares. "100 millones de pesos" ≠ "$100,000 USD".
 
 INSTRUCCIONES PARA EL RAZONAMIENTO (campo "razonamiento"):
 El razonamiento debe ser técnico, detallado y útil para el equipo comercial. Incluye:
@@ -75,11 +78,11 @@ Responde ÚNICAMENTE con un JSON válido (sin texto adicional, sin markdown) con
       "motivo": "string (actividades específicas y criterio de estimación de horas)"
     }}
   ],
-  "condiciones_entrega": "string",
-  "condiciones_pago": "string",
-  "condiciones_garantia": "string",
-  "validez_oferta": "string",
-  "observaciones": "string — advertencias técnicas, supuestos importantes, notas al comercial"
+  "condiciones_entrega": "string — plazo y modalidad realistas (ej: '4-6 semanas desde confirmación de pedido, entrega en sitio del cliente')",
+  "condiciones_pago": "string — términos claros (ej: '50% anticipo, 50% contra entrega con factura')",
+  "condiciones_garantia": "string — cobertura específica (ej: '2 años de garantía de fábrica sobre defectos de manufactura, excluye daños por mal uso o sobrecarga')",
+  "validez_oferta": "string — (ej: '30 días calendario')",
+  "observaciones": "string — mínimo 3 párrafos: (1) resumen técnico de la solución propuesta y por qué es la correcta para este cliente, (2) advertencias operativas importantes (temperatura, ciclos, mantenimiento), (3) próximos pasos recomendados. Escribe en tono profesional dirigido al cliente."
 }}"""
 
 
