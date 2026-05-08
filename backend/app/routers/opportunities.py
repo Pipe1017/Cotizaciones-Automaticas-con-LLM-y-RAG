@@ -141,6 +141,13 @@ def delete_opportunity(opp_id: int, db: Session = Depends(get_db)):
         opp.quotation_id = None
         db.flush()
 
+    # Borrar archivos MinIO de todas las cotizaciones asociadas
+    from app.services.minio_service import MinioService
+    minio = MinioService()
+    quotes = db.query(Quotation).filter(Quotation.opportunity_id == opp_id).all()
+    for q in quotes:
+        minio.delete_quotation_files(q)
+
     # Borrar TODAS las cotizaciones de esta oportunidad (incluyendo versiones anteriores)
     db.query(Quotation).filter(Quotation.opportunity_id == opp_id).delete(synchronize_session=False)
     db.flush()

@@ -45,5 +45,21 @@ class MinioService:
         )
         return f"{bucket}/{object_name}"
 
+    def delete(self, object_path: str) -> None:
+        """Delete a file from MinIO. object_path = 'bucket/path/file.xlsx'"""
+        try:
+            parts = object_path.split("/", 1)
+            if len(parts) == 2:
+                self.client.remove_object(parts[0], parts[1])
+        except Exception:
+            pass  # Si el archivo ya no existe, no es un error
+
+    def delete_quotation_files(self, quote: object) -> None:
+        """Borra todos los archivos de una cotización de MinIO."""
+        for attr in ("file_path_minio", "file_path_carta", "file_path_cotizacion", "file_path_pdf"):
+            path = getattr(quote, attr, None)
+            if path:
+                self.delete(path)
+
     def get_template(self) -> bytes:
         return self.download(f"{settings.minio_bucket_templates}/cotizacion_base.xlsx")

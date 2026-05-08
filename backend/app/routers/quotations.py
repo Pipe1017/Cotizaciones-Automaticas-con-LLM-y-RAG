@@ -1019,6 +1019,9 @@ def delete_quotation(quote_id: int, db: Session = Depends(get_db)):
         if opp:
             opp.quotation_id = None
             db.flush()
+    # Borrar archivos de MinIO
+    from app.services.minio_service import MinioService
+    MinioService().delete_quotation_files(quote)
     # Los ítems se borran en cascada (ondelete=CASCADE)
     db.delete(quote)
     db.commit()
