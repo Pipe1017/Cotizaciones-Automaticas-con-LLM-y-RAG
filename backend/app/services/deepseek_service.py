@@ -97,8 +97,12 @@ def _build_request_body(prompt: str, catalog_json: str, roles_json: str = "[]") 
     }
 
     if settings.deepseek_use_reasoning:
-        # deepseek-reasoner no soporta response_format — el JSON viene en content
-        body["reasoning_effort"] = settings.deepseek_reasoning_effort
+        # v4-pro usa thinking object; v4-flash/reasoner usa reasoning_effort directo
+        if "pro" in settings.deepseek_model:
+            body["thinking"] = {"type": "enabled"}
+            body["reasoning_effort"] = settings.deepseek_reasoning_effort
+        else:
+            body["reasoning_effort"] = settings.deepseek_reasoning_effort
     else:
         body["response_format"] = {"type": "json_object"}
 
@@ -122,7 +126,7 @@ async def generate_quotation_items(prompt: str, catalog_json: str, roles_json: s
     url = f"{settings.deepseek_base_url.rstrip('/')}/v1/chat/completions"
     body = _build_request_body(prompt, catalog_json, roles_json)
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
             url,
             headers={
