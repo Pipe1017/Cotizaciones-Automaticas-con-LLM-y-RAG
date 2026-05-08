@@ -26,13 +26,18 @@ scheduler = AsyncIOScheduler()
 
 async def _scheduled_backup():
     """Corre el backup automático si está habilitado y es la hora configurada."""
+    from datetime import datetime, timezone
     from app.database import SessionLocal
     from app.routers.backup import BackupConfig, _run_backup
     db = SessionLocal()
     try:
         cfg = db.query(BackupConfig).first()
-        if cfg and cfg.enabled and cfg.rclone_remote and cfg.remote_path:
-            await _run_backup(cfg.id, str(settings.database_url))
+        if not cfg or not cfg.enabled or not cfg.rclone_remote or not cfg.remote_path:
+            return
+        # Solo corre en la hora configurada (UTC)
+        if cfg.schedule_hour is not None and datetime.now(timezone.utc).hour != cfg.schedule_hour:
+            return
+        await _run_backup(cfg.id, str(settings.database_url))
     finally:
         db.close()
 
