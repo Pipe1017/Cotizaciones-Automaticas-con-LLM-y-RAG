@@ -271,18 +271,14 @@ def list_restore_points(db: Session = Depends(get_db), _=Depends(require_editor)
         raise HTTPException(400, "Configura el backup primero")
     try:
         result = subprocess.run(
-            ["rclone", "lsf", f"{cfg.rclone_remote}:{cfg.remote_path}/db/",
-             "--format", "nt", "--separator", "|"],
+            ["rclone", "lsf", f"{cfg.rclone_remote}:{cfg.remote_path}/db/"],
             capture_output=True, text=True, timeout=30,
         )
         files = []
         for line in result.stdout.strip().splitlines():
-            if "|" in line:
-                name, ts = line.split("|", 1)
-            else:
-                name, ts = line.strip(), ""
+            name = line.strip()
             if name.endswith(".sql.gz"):
-                files.append({"filename": name.strip(), "date": ts.strip()})
+                files.append({"filename": name, "date": ""})
         return sorted(files, key=lambda x: x["filename"], reverse=True)
     except subprocess.TimeoutExpired:
         raise HTTPException(500, "Timeout al listar backups en el remote")
