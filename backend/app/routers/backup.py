@@ -138,7 +138,7 @@ async def _run_backup(config_id: int, db_url: str):
             dump_path = os.path.join(tmpdir, f"opex_db_{ts}.sql.gz")
             try:
                 proc = await asyncio.create_subprocess_shell(
-                    f"pg_dump {db_url} | gzip > {dump_path}",
+                    f"pg_dump --clean --if-exists {db_url} | gzip > {dump_path}",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )

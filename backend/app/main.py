@@ -63,10 +63,11 @@ def _ensure_admin_user():
             db.commit()
             log.warning("=" * 60)
             log.warning("USUARIO ADMIN CREADO AUTOMÁTICAMENTE")
-            log.warning("  username: admin")
-            log.warning("  password: Admin123")
-            log.warning("  *** CAMBIA LA CONTRASEÑA DESPUÉS DEL PRIMER LOGIN ***")
+            log.warning("  username: admin  /  password: Admin123")
             log.warning("=" * 60)
+    except Exception as e:
+        db.rollback()
+        log.warning("_ensure_admin_user omitido: %s", e)
     finally:
         db.close()
 

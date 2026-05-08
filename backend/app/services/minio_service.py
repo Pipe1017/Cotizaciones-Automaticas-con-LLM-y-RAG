@@ -13,8 +13,11 @@ class MinioService:
         )
 
     def ensure_bucket(self, bucket: str) -> None:
-        if not self.client.bucket_exists(bucket):
-            self.client.make_bucket(bucket)
+        try:
+            if not self.client.bucket_exists(bucket):
+                self.client.make_bucket(bucket)
+        except Exception:
+            pass  # BucketAlreadyOwnedByYou u otro error no fatal
 
     def ensure_all_buckets(self) -> None:
         for bucket in (
