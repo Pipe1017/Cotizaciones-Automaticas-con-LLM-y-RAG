@@ -14,9 +14,9 @@ class Settings(BaseSettings):
 
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-v4-pro"
-    deepseek_reasoning_effort: str = "medium"   # low | medium | high
-    deepseek_use_reasoning: bool = False         # activa thinking/reasoning en modelos que lo soportan
+    deepseek_model: str = "deepseek-v4-flash"
+    deepseek_reasoning_effort: str = "high"      # low | medium | high
+    deepseek_use_reasoning: bool = True          # activa thinking/reasoning en modelos que lo soportan
 
     secret_key: str = "change-this-secret"
     backend_cors_origins: str = "http://localhost:3000"
